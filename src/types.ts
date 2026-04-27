@@ -22,6 +22,13 @@ export type AssistantConfig = {
 export type ModelConfig = {
   id: string;
   name: string;
+  attachment?: boolean;
+  reasoning?: boolean;
+  tool_call?: boolean;
+  modalities?: {
+    input?: string[];
+    output?: string[];
+  };
 };
 
 export type ModelProviderType =

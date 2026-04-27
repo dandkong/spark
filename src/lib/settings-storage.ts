@@ -154,9 +154,26 @@ function isModelProviderConfig(value: unknown): value is ModelProviderConfig {
   );
 }
 
+function isStringArray(value: unknown) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
 function isModelConfig(value: unknown) {
   if (!value || typeof value !== "object") return false;
 
   const model = value as Record<string, unknown>;
-  return typeof model.id === "string" && typeof model.name === "string";
+  const modalities = model.modalities as Record<string, unknown> | undefined;
+
+  return (
+    typeof model.id === "string" &&
+    typeof model.name === "string" &&
+    (model.attachment === undefined || typeof model.attachment === "boolean") &&
+    (model.reasoning === undefined || typeof model.reasoning === "boolean") &&
+    (model.tool_call === undefined || typeof model.tool_call === "boolean") &&
+    (model.modalities === undefined ||
+      (!!modalities &&
+        typeof modalities === "object" &&
+        (modalities.input === undefined || isStringArray(modalities.input)) &&
+        (modalities.output === undefined || isStringArray(modalities.output))))
+  );
 }

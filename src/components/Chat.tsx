@@ -22,9 +22,15 @@ import {
 } from "@/components/ai-elements/model-selector";
 import {
   Attachment,
+  AttachmentHoverCard,
+  AttachmentHoverCardContent,
+  AttachmentHoverCardTrigger,
+  AttachmentInfo,
   AttachmentPreview,
   AttachmentRemove,
   Attachments,
+  getAttachmentLabel,
+  getMediaCategory,
 } from "@/components/ai-elements/attachments";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
@@ -58,7 +64,7 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
 import { useChat } from "@ai-sdk/react";
-import { DirectChatTransport, ToolLoopAgent } from "ai";
+import { DirectChatTransport, ToolLoopAgent, type FileUIPart } from "ai";
 import {
   CheckIcon,
   ClipboardCheckIcon,
@@ -349,6 +355,7 @@ export default function Chat({
                   } as CSSProperties
                 }
               >
+                <MessageAttachments message={message} />
                 {message.parts.map((part, index) => {
                   if (part.type === "reasoning") {
                     const isLastMessage =
@@ -578,6 +585,61 @@ export default function Chat({
   );
 }
 
+function MessageAttachments({ message }: { message: AppChatMessage }) {
+  const files = message.parts.filter(
+    (part): part is FileUIPart => part.type === "file",
+  );
+
+  if (files.length === 0) return null;
+
+  return (
+    <Attachments
+      variant="inline"
+      className={message.role === "user" ? "justify-end" : undefined}
+    >
+      {files.map((file, index) => {
+        const attachment = { ...file, id: `${message.id}:file:${index}` };
+        const mediaCategory = getMediaCategory(attachment);
+        const label = getAttachmentLabel(attachment);
+
+        return (
+          <AttachmentHoverCard key={attachment.id}>
+            <AttachmentHoverCardTrigger render={<Attachment data={attachment} />}>
+              <AttachmentPreview />
+              <AttachmentInfo />
+            </AttachmentHoverCardTrigger>
+            <AttachmentHoverCardContent>
+              <div className="space-y-3">
+                {mediaCategory === "image" && attachment.url && (
+                  <div className="flex max-h-96 w-80 items-center justify-center overflow-hidden rounded-md border">
+                    <img
+                      alt={label}
+                      className="max-h-full max-w-full object-contain"
+                      height={384}
+                      src={attachment.url}
+                      width={320}
+                    />
+                  </div>
+                )}
+                <div className="space-y-1 px-0.5">
+                  <h4 className="font-semibold text-sm leading-none">
+                    {label}
+                  </h4>
+                  {attachment.mediaType && (
+                    <p className="font-mono text-muted-foreground text-xs">
+                      {attachment.mediaType}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </AttachmentHoverCardContent>
+          </AttachmentHoverCard>
+        );
+      })}
+    </Attachments>
+  );
+}
+
 function PromptInputAttachmentButton() {
   const attachments = usePromptInputAttachments();
 
@@ -601,16 +663,52 @@ function PromptInputAttachmentsDisplay() {
 
   return (
     <Attachments variant="inline">
-      {attachments.files.map((attachment) => (
-        <Attachment
-          data={attachment}
-          key={attachment.id}
-          onRemove={() => attachments.remove(attachment.id)}
-        >
-          <AttachmentPreview />
-          <AttachmentRemove label="移除附件" />
-        </Attachment>
-      ))}
+      {attachments.files.map((attachment) => {
+        const mediaCategory = getMediaCategory(attachment);
+        const label = getAttachmentLabel(attachment);
+
+        return (
+          <AttachmentHoverCard key={attachment.id}>
+            <AttachmentHoverCardTrigger
+              render={
+                <Attachment
+                  data={attachment}
+                  onRemove={() => attachments.remove(attachment.id)}
+                />
+              }
+            >
+              <AttachmentPreview />
+              <AttachmentInfo />
+              <AttachmentRemove label="移除附件" />
+            </AttachmentHoverCardTrigger>
+            <AttachmentHoverCardContent>
+              <div className="space-y-3">
+                {mediaCategory === "image" && attachment.url && (
+                  <div className="flex max-h-96 w-80 items-center justify-center overflow-hidden rounded-md border">
+                    <img
+                      alt={label}
+                      className="max-h-full max-w-full object-contain"
+                      height={384}
+                      src={attachment.url}
+                      width={320}
+                    />
+                  </div>
+                )}
+                <div className="space-y-1 px-0.5">
+                  <h4 className="font-semibold text-sm leading-none">
+                    {label}
+                  </h4>
+                  {attachment.mediaType && (
+                    <p className="font-mono text-muted-foreground text-xs">
+                      {attachment.mediaType}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </AttachmentHoverCardContent>
+          </AttachmentHoverCard>
+        );
+      })}
     </Attachments>
   );
 }

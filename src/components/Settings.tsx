@@ -19,6 +19,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
   getProviderDisplayName,
   getProviderLogo,
   getProviderNavName,
@@ -29,6 +35,8 @@ import {
   CheckIcon,
   Edit3Icon,
   CloudDownloadIcon,
+  EyeIcon,
+  EyeOffIcon,
   LoaderIcon,
   SettingsIcon,
   PlusIcon,
@@ -114,7 +122,6 @@ export default function Settings({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="size-6"
                 onClick={() => setSection(onCreateProvider())}
                 title="添加供应商"
               >
@@ -301,6 +308,7 @@ function ModelList({
   const [fetching, setFetching] = useState(false);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [availableModels, setAvailableModels] = useState<ModelConfig[]>([]);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const handleFetch = useCallback(() => {
     setFetching(true);
@@ -321,11 +329,6 @@ function ModelList({
     <SettingsContent>
       <SettingsHeader
         title={getProviderDisplayName(provider)}
-        description={
-          provider.type === "openai-compatible"
-            ? "OpenAI 兼容供应商"
-            : undefined
-        }
         icon={
           <ModelSelectorLogo
             provider={getProviderLogo(provider)}
@@ -364,13 +367,28 @@ function ModelList({
         </label>
         <label className="grid gap-2">
           <span className="text-sm font-medium">API Key</span>
-          <Input
-            type="password"
-            value={provider.apiKey}
-            onChange={(event) =>
-              onUpdateProvider({ apiKey: event.target.value })
-            }
-          />
+          <InputGroup>
+            <InputGroupInput
+              type={showApiKey ? "text" : "password"}
+              value={provider.apiKey}
+              onChange={(event) =>
+                onUpdateProvider({ apiKey: event.target.value })
+              }
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                onClick={() => setShowApiKey((visible) => !visible)}
+                title={showApiKey ? "隐藏 API Key" : "显示 API Key"}
+              >
+                {showApiKey ? (
+                  <EyeOffIcon className="size-4" />
+                ) : (
+                  <EyeIcon className="size-4" />
+                )}
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
         </label>
       </div>
 
