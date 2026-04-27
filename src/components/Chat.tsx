@@ -13,12 +13,19 @@ import {
   ModelSelectorContent,
   ModelSelectorEmpty,
   ModelSelectorGroup,
+  ModelSelectorInput,
   ModelSelectorItem,
   ModelSelectorList,
   ModelSelectorLogo,
   ModelSelectorName,
   ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector";
+import {
+  Attachment,
+  AttachmentPreview,
+  AttachmentRemove,
+  Attachments,
+} from "@/components/ai-elements/attachments";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,9 +46,11 @@ import {
   PromptInput,
   PromptInputBody,
   PromptInputFooter,
+  PromptInputHeader,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
+  usePromptInputAttachments,
 } from "@/components/ai-elements/prompt-input";
 import {
   Reasoning,
@@ -56,6 +65,7 @@ import {
   LightbulbIcon,
   CopyIcon,
   EraserIcon,
+  PaperclipIcon,
   PencilIcon,
   RefreshCwIcon,
   Trash2Icon,
@@ -93,6 +103,7 @@ type ChatProps = {
   messages: AppChatMessage[];
   messageFontSize: number;
   reasoningMode: ReasoningMode;
+  isActive: boolean;
   onReasoningModeChange: (reasoningMode: ReasoningMode) => void;
   onMessagesChange: (assistantId: string, messages: AppChatMessage[]) => void;
   onModelChange: (providerId: string, modelId: string) => void;
@@ -107,6 +118,7 @@ export default function Chat({
   messages: initialMessages,
   messageFontSize,
   reasoningMode,
+  isActive,
   onReasoningModeChange,
   onMessagesChange,
   onModelChange,
@@ -304,12 +316,17 @@ export default function Chat({
 
   const handleSubmit = useCallback(
     (message: PromptInputMessage) => {
-      if (!message.text?.trim()) return;
+      const text = message.text.trim();
+      const hasFiles = message.files.length > 0;
+      if (!text && !hasFiles) return;
       if (!hasConfiguredModel) {
         toast.error("请在设置中配置模型");
         return;
       }
-      sendMessage({ text: message.text });
+      sendMessage({
+        text,
+        files: message.files,
+      });
       setInput("");
     },
     [hasConfiguredModel, sendMessage],
@@ -384,14 +401,24 @@ export default function Chat({
       {/* Welcome + Input area */}
       {messages.length === 0 && (
         <div className="flex flex-1 items-center justify-center text-xl text-foreground">
-          <TypewriterText key={assistant.id} text="⚡ Let's spark something new !" />
+          <TypewriterText
+            key={`${assistant.id}:${isActive ? "active" : "inactive"}`}
+            text="⚡ Let's spark something new !"
+          />
         </div>
       )}
 
       {/* Input area */}
       <div className="grid shrink-0 gap-4 pt-4">
         <div className="w-full pb-4">
-          <PromptInput onSubmit={handleSubmit}>
+          <PromptInput
+            onSubmit={handleSubmit}
+            globalDrop
+            multiple
+          >
+            <PromptInputHeader>
+              <PromptInputAttachmentsDisplay />
+            </PromptInputHeader>
             <PromptInputBody>
               <PromptInputTextarea
                 onChange={(e) => setInput(e.target.value)}
@@ -424,6 +451,7 @@ export default function Chat({
                     </ModelSelectorName>
                   </ModelSelectorTrigger>
                   <ModelSelectorContent>
+                    <ModelSelectorInput placeholder="搜索模型..." />
                     <ModelSelectorList>
                       <ModelSelectorEmpty>未找到模型。</ModelSelectorEmpty>
                       {providers.map((modelProvider) => (
@@ -503,6 +531,7 @@ export default function Chat({
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <PromptInputAttachmentButton />
                 <Button
                   type="button"
                   variant="outline"
@@ -546,6 +575,43 @@ export default function Chat({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function PromptInputAttachmentButton() {
+  const attachments = usePromptInputAttachments();
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={attachments.openFileDialog}
+      title="添加附件"
+    >
+      <PaperclipIcon className="size-4" />
+    </Button>
+  );
+}
+
+function PromptInputAttachmentsDisplay() {
+  const attachments = usePromptInputAttachments();
+
+  if (attachments.files.length === 0) return null;
+
+  return (
+    <Attachments variant="inline">
+      {attachments.files.map((attachment) => (
+        <Attachment
+          data={attachment}
+          key={attachment.id}
+          onRemove={() => attachments.remove(attachment.id)}
+        >
+          <AttachmentPreview />
+          <AttachmentRemove label="移除附件" />
+        </Attachment>
+      ))}
+    </Attachments>
   );
 }
 

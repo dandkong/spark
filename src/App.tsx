@@ -19,7 +19,9 @@ import type { UserPreferences } from "@/lib/preferences-storage";
 import {
   BUILTIN_MODEL_PROVIDERS,
   createOpenAICompatibleProvider,
+  isBuiltinProvider,
 } from "@/lib/model-providers";
+import { fetchProviderModels } from "@/lib/models-dev";
 import type {
   AppChatMessage,
   AssistantConfig,
@@ -98,17 +100,22 @@ function App() {
   const configuredProviders = modelProviders.filter(
     (provider) => provider.apiKey.trim() && provider.models.length > 0,
   );
-  const storedProvider = configuredProviders.find(
-    (provider) => provider.id === activeAssistant.providerId,
+  const getAssistantChatConfig = useCallback(
+    (assistant: AssistantConfig) => {
+      const storedProvider = configuredProviders.find(
+        (provider) => provider.id === assistant.providerId,
+      );
+      const provider = storedProvider ?? configuredProviders[0];
+      const models = provider?.models ?? [];
+      const model =
+        models.find((model) => model.id === assistant.modelId)?.id ??
+        models[0]?.id ??
+        "";
+
+      return { provider, models, model };
+    },
+    [configuredProviders],
   );
-  const activeProvider = storedProvider ?? configuredProviders[0];
-  const activeModels = activeProvider?.models ?? [];
-  const activeModelId =
-    activeModels.find((model) => model.id === activeAssistant.modelId)?.id ??
-    activeModels[0]?.id ??
-    "";
-  const activeAssistantMessages =
-    assistantMessages[activeAssistant.id] ?? [];
 
   useEffect(() => {
     let cancelled = false;
@@ -331,6 +338,21 @@ function App() {
     );
   };
 
+  const handleAddModel = useCallback((providerId: string, model: ModelConfig) => {
+    setModelProviders((current) =>
+      current.map((provider) => {
+        if (provider.id !== providerId) return provider;
+        if (provider.models.some((item) => item.id === model.id)) return provider;
+        return { ...provider, models: [...provider.models, model] };
+      }),
+    );
+  }, []);
+
+  const handleFetchModels = async (providerId: string) => {
+    if (!isBuiltinProvider(providerId)) return [];
+    return fetchProviderModels(providerId);
+  };
+
   return (
     <TooltipProvider>
       <div className="flex h-full">
@@ -360,6 +382,7 @@ function App() {
                 onCreateModel={(providerId) =>
                   setModelDialog({ open: true, providerId, model: null })
                 }
+                onAddModel={handleAddModel}
                 onEditModel={(providerId, model) =>
                   setModelDialog({ open: true, providerId, model })
                 }
@@ -367,34 +390,49 @@ function App() {
                 onCreateProvider={handleCreateProvider}
                 onDeleteProvider={handleDeleteProvider}
                 onUpdateProvider={handleUpdateProvider}
+                onFetchModels={handleFetchModels}
               />
             ) : (
-              <Chat
-                assistant={activeAssistant}
-                providers={configuredProviders}
-                provider={activeProvider}
-                models={activeModels}
-                model={activeModelId}
-                messages={activeAssistantMessages}
-                messageFontSize={preferences.chatMessageFontSize}
-                reasoningMode={preferences.reasoningMode}
-                onReasoningModeChange={(reasoningMode) =>
-                  setPreferences((current) => ({
-                    ...current,
-                    reasoningMode,
-                  }))
-                }
-                onMessagesChange={handleAssistantMessagesChange}
-                onModelChange={(providerId, modelId) =>
-                  setAssistants((current) =>
-                    current.map((assistant) =>
-                      assistant.id === activeAssistant.id
-                        ? { ...assistant, providerId, modelId }
-                        : assistant,
-                    ),
-                  )
-                }
-              />
+              assistants.map((assistant) => {
+                const { provider, models, model } =
+                  getAssistantChatConfig(assistant);
+                const isActive = assistant.id === activeAssistant.id;
+
+                return (
+                  <div
+                    key={assistant.id}
+                    className={isActive ? "contents" : "hidden"}
+                  >
+                    <Chat
+                      assistant={assistant}
+                      providers={configuredProviders}
+                      provider={provider}
+                      models={models}
+                      model={model}
+                      messages={assistantMessages[assistant.id] ?? []}
+                      messageFontSize={preferences.chatMessageFontSize}
+                      reasoningMode={preferences.reasoningMode}
+                      isActive={isActive}
+                      onReasoningModeChange={(reasoningMode) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          reasoningMode,
+                        }))
+                      }
+                      onMessagesChange={handleAssistantMessagesChange}
+                      onModelChange={(providerId, modelId) =>
+                        setAssistants((current) =>
+                          current.map((item) =>
+                            item.id === assistant.id
+                              ? { ...item, providerId, modelId }
+                              : item,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
+                );
+              })
             )}
           </main>
       </div>

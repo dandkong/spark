@@ -1,11 +1,21 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, useCallback } from "react";
 import type {
   AssistantConfig,
   ModelConfig,
   ModelProviderConfig,
 } from "@/types";
 import type { UserPreferences } from "@/lib/preferences-storage";
-import { ModelSelectorLogo } from "@/components/ai-elements/model-selector";
+import {
+  ModelSelector,
+  ModelSelectorContent,
+  ModelSelectorEmpty,
+  ModelSelectorGroup,
+  ModelSelectorInput,
+  ModelSelectorItem,
+  ModelSelectorList,
+  ModelSelectorLogo,
+  ModelSelectorName,
+} from "@/components/ai-elements/model-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,11 +26,15 @@ import {
 import { cn } from "@/lib/utils";
 import {
   BotIcon,
+  CheckIcon,
   Edit3Icon,
+  CloudDownloadIcon,
+  LoaderIcon,
   SettingsIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type SettingsProps = {
   assistants: AssistantConfig[];
@@ -31,6 +45,7 @@ type SettingsProps = {
   onEditAssistant: (assistant: AssistantConfig) => void;
   onDeleteAssistant: (assistantId: string) => void;
   onCreateModel: (providerId: string) => void;
+  onAddModel: (providerId: string, model: ModelConfig) => void;
   onEditModel: (providerId: string, model: ModelConfig) => void;
   onDeleteModel: (providerId: string, modelId: string) => void;
   onCreateProvider: () => string;
@@ -39,6 +54,7 @@ type SettingsProps = {
     providerId: string,
     patch: Partial<Pick<ModelProviderConfig, "name" | "apiKey" | "baseURL">>,
   ) => void;
+  onFetchModels: (providerId: string) => Promise<ModelConfig[]>;
 };
 
 export default function Settings({
@@ -50,11 +66,13 @@ export default function Settings({
   onEditAssistant,
   onDeleteAssistant,
   onCreateModel,
+  onAddModel,
   onEditModel,
   onDeleteModel,
   onCreateProvider,
   onDeleteProvider,
   onUpdateProvider,
+  onFetchModels,
 }: SettingsProps) {
   const [section, setSection] = useState("assistants");
   const selectedProvider = modelProviders.find(
@@ -140,10 +158,12 @@ export default function Settings({
                   onUpdateProvider(selectedProvider.id, patch)
                 }
                 onCreate={() => onCreateModel(selectedProvider.id)}
+                onAdd={(model) => onAddModel(selectedProvider.id, model)}
                 onEdit={(model) => onEditModel(selectedProvider.id, model)}
                 onDelete={(modelId) =>
                   onDeleteModel(selectedProvider.id, modelId)
                 }
+                onFetchModels={() => onFetchModels(selectedProvider.id)}
                 onDeleteProvider={() => {
                   onDeleteProvider(selectedProvider.id);
                   setSection("assistants");
@@ -260,8 +280,10 @@ function ModelList({
   provider,
   onUpdateProvider,
   onCreate,
+  onAdd,
   onEdit,
   onDelete,
+  onFetchModels,
   onDeleteProvider,
 }: {
   provider: ModelProviderConfig;
@@ -269,11 +291,31 @@ function ModelList({
     patch: Partial<Pick<ModelProviderConfig, "name" | "apiKey" | "baseURL">>,
   ) => void;
   onCreate: () => void;
+  onAdd: (model: ModelConfig) => void;
   onEdit: (model: ModelConfig) => void;
   onDelete: (modelId: string) => void;
+  onFetchModels: () => Promise<ModelConfig[]>;
   onDeleteProvider: () => void;
 }) {
   const { models } = provider;
+  const [fetching, setFetching] = useState(false);
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
+  const [availableModels, setAvailableModels] = useState<ModelConfig[]>([]);
+
+  const handleFetch = useCallback(() => {
+    setFetching(true);
+    onFetchModels()
+      .then((fetchedModels) => {
+        setAvailableModels(fetchedModels);
+        setModelSelectorOpen(true);
+      })
+      .catch((error) => {
+        toast.error("获取模型失败", {
+          description: error instanceof Error ? error.message : "请稍后重试。",
+        });
+      })
+      .finally(() => setFetching(false));
+  }, [onFetchModels]);
 
   return (
     <SettingsContent>
@@ -334,11 +376,67 @@ function ModelList({
 
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-medium">模型</h2>
-        <Button onClick={onCreate} title="新建模型">
-          <PlusIcon className="size-4" />
-          新建
-        </Button>
+        <div className="flex gap-2">
+          {provider.builtin && (
+            <Button
+              variant="outline"
+              onClick={handleFetch}
+              disabled={fetching}
+              title="从 models.dev 获取模型列表"
+            >
+              {fetching ? (
+                <LoaderIcon className="size-4 animate-spin" />
+              ) : (
+                <CloudDownloadIcon className="size-4" />
+              )}
+              获取模型
+            </Button>
+          )}
+          <Button variant="outline" onClick={onCreate} title="新建模型">
+            <PlusIcon className="size-4" />
+            新建
+          </Button>
+        </div>
       </div>
+
+      <ModelSelector
+        open={modelSelectorOpen}
+        onOpenChange={setModelSelectorOpen}
+      >
+        <ModelSelectorContent title="选择模型">
+          <ModelSelectorInput placeholder="搜索模型..." />
+          <ModelSelectorList>
+            <ModelSelectorEmpty>未找到模型。</ModelSelectorEmpty>
+            <ModelSelectorGroup heading={getProviderDisplayName(provider)}>
+              {availableModels.map((model) => {
+                const exists = models.some((item) => item.id === model.id);
+
+                return (
+                  <ModelSelectorItem
+                    key={model.id}
+                    value={`${model.name} ${model.id}`}
+                    onSelect={() => {
+                      if (exists) {
+                        onDelete(model.id);
+                        return;
+                      }
+                      onAdd(model);
+                    }}
+                  >
+                    <ModelSelectorLogo provider={getProviderLogo(provider)} />
+                    <ModelSelectorName>{model.name}</ModelSelectorName>
+                    {exists ? (
+                      <CheckIcon className="ml-auto size-4" />
+                    ) : (
+                      <div className="ml-auto size-4" />
+                    )}
+                  </ModelSelectorItem>
+                );
+              })}
+            </ModelSelectorGroup>
+          </ModelSelectorList>
+        </ModelSelectorContent>
+      </ModelSelector>
 
       <div className="grid gap-2">
         {models.map((model) => (
@@ -391,7 +489,7 @@ function AssistantList({
       <SettingsHeader
         title="助手"
         action={
-          <Button onClick={onCreate} title="新建助手">
+          <Button variant="outline" onClick={onCreate} title="新建助手">
             <PlusIcon className="size-4" />
             新建
           </Button>
