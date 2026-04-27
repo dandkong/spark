@@ -57,7 +57,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "Spark v__VERSION__"
-          releaseBody: "See the assets to download and install."
+          releaseBody: ""
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
