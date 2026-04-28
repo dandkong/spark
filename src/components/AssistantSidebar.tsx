@@ -2,11 +2,18 @@ import type { AssistantConfig } from "@/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon } from "lucide-react";
+import { useRef, useState } from "react";
+
+const collapsedWidth = 56;
+const minSidebarWidth = 150;
+const maxSidebarWidth = 420;
 
 type AssistantSidebarProps = {
   assistants: AssistantConfig[];
   activeAssistantId: string;
   collapsed: boolean;
+  width: number;
+  onWidthChange: (width: number) => void;
   onToggleCollapsed: () => void;
   onCreateAssistant: () => void;
   onSelectAssistant: (assistantId: string) => void;
@@ -16,16 +23,45 @@ export default function AssistantSidebar({
   assistants,
   activeAssistantId,
   collapsed,
+  width,
+  onWidthChange,
   onToggleCollapsed,
   onCreateAssistant,
   onSelectAssistant,
 }: AssistantSidebarProps) {
+  const asideRef = useRef<HTMLElement>(null);
+  const [resizing, setResizing] = useState(false);
+
+  const handleResizePointerDown = (event: React.PointerEvent) => {
+    if (collapsed) return;
+
+    event.preventDefault();
+    setResizing(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleResizePointerMove = (event: React.PointerEvent) => {
+    if (!resizing || collapsed) return;
+
+    const left = asideRef.current?.getBoundingClientRect().left ?? 0;
+    onWidthChange(clamp(event.clientX - left, minSidebarWidth, maxSidebarWidth));
+  };
+
+  const handleResizePointerEnd = (event: React.PointerEvent) => {
+    if (!resizing) return;
+
+    setResizing(false);
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
   return (
     <aside
+      ref={asideRef}
       className={cn(
-        "flex h-full shrink-0 flex-col border-r transition-[width]",
-        collapsed ? "w-14" : "w-64",
+        "relative flex h-full shrink-0 flex-col border-r",
+        resizing ? "select-none" : "transition-[width]",
       )}
+      style={{ width: collapsed ? collapsedWidth : width }}
     >
       <div
         className={cn(
@@ -123,6 +159,27 @@ export default function AssistantSidebar({
           </div>
         </div>
       )}
+
+      {!collapsed && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整侧边栏宽度"
+          className={cn(
+            "absolute top-0 right-[-3px] z-10 h-full w-1.5 cursor-col-resize touch-none",
+            "after:absolute after:top-0 after:left-1/2 after:h-full after:w-px after:-translate-x-1/2 after:bg-border after:opacity-0 after:transition-opacity hover:after:opacity-100",
+            resizing && "after:opacity-100",
+          )}
+          onPointerDown={handleResizePointerDown}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={handleResizePointerEnd}
+          onPointerCancel={handleResizePointerEnd}
+        />
+      )}
     </aside>
   );
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }

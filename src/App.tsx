@@ -49,6 +49,9 @@ const defaultPreferences: UserPreferences = {
   activeAssistantId: initialAssistants[0].id,
   chatMessageFontSize: 14,
   reasoningMode: "auto",
+  sidebarCollapsed: false,
+  sidebarWidth: 256,
+  contextMessageLimit: null,
 };
 
 const defaultSettings = {
@@ -76,7 +79,6 @@ function App() {
   const [assistantMessages, setAssistantMessages] = useState<
     Record<string, AppChatMessage[]>
   >({});
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [assistantDialog, setAssistantDialog] =
     useState<AssistantDialogState>({
@@ -153,6 +155,7 @@ function App() {
     savePreferences(preferences);
   }, [preferences, settingsLoaded]);
 
+
   useEffect(() => {
     if (
       !assistants.some(
@@ -205,7 +208,7 @@ function App() {
         ...current,
         activeAssistantId: assistantWithModel.id,
       }));
-      setSidebarCollapsed(false);
+      setPreferences((current) => ({ ...current, sidebarCollapsed: false }));
       return;
     }
 
@@ -359,9 +362,16 @@ function App() {
         <AssistantSidebar
             assistants={assistants}
             activeAssistantId={preferences.activeAssistantId}
-            collapsed={sidebarCollapsed}
+            collapsed={preferences.sidebarCollapsed}
+            width={preferences.sidebarWidth}
+            onWidthChange={(sidebarWidth) =>
+              setPreferences((current) => ({ ...current, sidebarWidth }))
+            }
             onToggleCollapsed={() =>
-              setSidebarCollapsed((collapsed) => !collapsed)
+              setPreferences((current) => ({
+                ...current,
+                sidebarCollapsed: !current.sidebarCollapsed,
+              }))
             }
             onCreateAssistant={openCreateAssistant}
             onSelectAssistant={handleSelectAssistant}
@@ -412,6 +422,7 @@ function App() {
                       messages={assistantMessages[assistant.id] ?? []}
                       messageFontSize={preferences.chatMessageFontSize}
                       reasoningMode={preferences.reasoningMode}
+                      contextMessageLimit={preferences.contextMessageLimit}
                       isActive={isActive}
                       onReasoningModeChange={(reasoningMode) =>
                         setPreferences((current) => ({

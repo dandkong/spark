@@ -64,7 +64,12 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
 import { useChat } from "@ai-sdk/react";
-import { DirectChatTransport, ToolLoopAgent, type FileUIPart } from "ai";
+import {
+  DirectChatTransport,
+  ToolLoopAgent,
+  type ChatTransport,
+  type FileUIPart,
+} from "ai";
 import {
   CheckIcon,
   ClipboardCheckIcon,
@@ -100,6 +105,40 @@ const reasoningModeLabels: Record<ReasoningMode, string> = {
   on: "开启",
 };
 
+class ContextLimitedChatTransport implements ChatTransport<AppChatMessage> {
+  constructor(
+    private readonly transport: ChatTransport<AppChatMessage>,
+    private readonly contextMessageLimit: number | null,
+  ) {}
+
+  sendMessages(options: Parameters<ChatTransport<AppChatMessage>["sendMessages"]>[0]) {
+    return this.transport.sendMessages({
+      ...options,
+      messages: limitContextMessages(
+        options.messages,
+        this.contextMessageLimit,
+      ),
+    });
+  }
+
+  reconnectToStream(
+    options: Parameters<ChatTransport<AppChatMessage>["reconnectToStream"]>[0],
+  ) {
+    return this.transport.reconnectToStream(options);
+  }
+}
+
+function limitContextMessages(
+  messages: AppChatMessage[],
+  contextMessageLimit: number | null,
+) {
+  if (contextMessageLimit === null || messages.length <= contextMessageLimit) {
+    return messages;
+  }
+
+  return messages.slice(-contextMessageLimit);
+}
+
 type ChatProps = {
   assistant: AssistantConfig;
   providers: ModelProviderConfig[];
@@ -109,6 +148,7 @@ type ChatProps = {
   messages: AppChatMessage[];
   messageFontSize: number;
   reasoningMode: ReasoningMode;
+  contextMessageLimit: number | null;
   isActive: boolean;
   onReasoningModeChange: (reasoningMode: ReasoningMode) => void;
   onMessagesChange: (assistantId: string, messages: AppChatMessage[]) => void;
@@ -124,6 +164,7 @@ export default function Chat({
   messages: initialMessages,
   messageFontSize,
   reasoningMode,
+  contextMessageLimit,
   isActive,
   onReasoningModeChange,
   onMessagesChange,
@@ -174,8 +215,12 @@ export default function Chat({
   );
 
   const transport = useMemo(
-    () => new DirectChatTransport({ agent, sendReasoning: true }),
-    [agent],
+    () =>
+      new ContextLimitedChatTransport(
+        new DirectChatTransport({ agent, sendReasoning: true }),
+        contextMessageLimit,
+      ),
+    [agent, contextMessageLimit],
   );
 
   const {

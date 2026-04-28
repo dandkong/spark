@@ -8,6 +8,9 @@ export type UserPreferences = {
   activeAssistantId: string;
   chatMessageFontSize: number;
   reasoningMode: ReasoningMode;
+  sidebarCollapsed: boolean;
+  sidebarWidth: number;
+  contextMessageLimit: number | null;
 };
 
 let storePromise: Promise<Store> | null = null;
@@ -27,6 +30,11 @@ export async function loadPreferences(
     if (!stored || typeof stored !== "object") return fallback;
 
     const fontSize = Number(stored.chatMessageFontSize);
+    const sidebarWidth = Number(stored.sidebarWidth);
+    const contextMessageLimit = parseContextMessageLimit(
+      stored.contextMessageLimit,
+      fallback.contextMessageLimit,
+    );
 
     return {
       activeAssistantId:
@@ -39,6 +47,14 @@ export async function loadPreferences(
       reasoningMode: isReasoningMode(stored.reasoningMode)
         ? stored.reasoningMode
         : fallback.reasoningMode,
+      sidebarCollapsed:
+        typeof stored.sidebarCollapsed === "boolean"
+          ? stored.sidebarCollapsed
+          : fallback.sidebarCollapsed,
+      sidebarWidth: Number.isFinite(sidebarWidth)
+        ? clamp(sidebarWidth, 220, 420)
+        : fallback.sidebarWidth,
+      contextMessageLimit,
     };
   } catch {
     return fallback;
@@ -57,6 +73,15 @@ export async function savePreferences(preferences: UserPreferences) {
 
 function isReasoningMode(value: unknown): value is ReasoningMode {
   return value === "auto" || value === "off" || value === "on";
+}
+
+function parseContextMessageLimit(
+  value: unknown,
+  fallback: number | null,
+): number | null {
+  if (value === null) return null;
+  const limit = Number(value);
+  return Number.isFinite(limit) ? clamp(Math.round(limit), 0, 100) : fallback;
 }
 
 function clamp(value: number, min: number, max: number) {
