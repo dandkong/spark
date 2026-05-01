@@ -1,6 +1,17 @@
 import type { InferUITools, UIMessage } from "ai";
 
-export type AppChatMessage = UIMessage<unknown, never, InferUITools<{}>>;
+export type AppChatMessageMetadata = {
+  generatedBy?: "primary" | "mention";
+  sourceUserMessageId?: string;
+  providerId?: string;
+  modelId?: string;
+};
+
+export type AppChatMessage = UIMessage<
+  AppChatMessageMetadata,
+  never,
+  InferUITools<{}>
+>;
 
 export type ReasoningMode = "auto" | "off" | "on";
 

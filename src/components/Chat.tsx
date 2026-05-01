@@ -34,6 +34,7 @@ import {
 } from "@/components/ai-elements/attachments";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,10 +68,12 @@ import { useChat } from "@ai-sdk/react";
 import {
   DirectChatTransport,
   ToolLoopAgent,
+  readUIMessageStream,
   type ChatTransport,
   type FileUIPart,
 } from "ai";
 import {
+  AtSignIcon,
   CheckIcon,
   ClipboardCheckIcon,
   LightbulbIcon,
@@ -115,7 +118,9 @@ class ContextLimitedChatTransport implements ChatTransport<AppChatMessage> {
     return this.transport.sendMessages({
       ...options,
       messages: limitContextMessages(
-        options.messages,
+        options.messages.filter(
+          (message) => message.metadata?.generatedBy !== "mention",
+        ),
         this.contextMessageLimit,
       ),
     });
@@ -134,6 +139,9 @@ function limitContextMessages(
 ) {
   if (contextMessageLimit === null || messages.length <= contextMessageLimit) {
     return messages;
+  }
+  if (contextMessageLimit === 0) {
+    return messages.at(-1) ? [messages.at(-1)!] : [];
   }
 
   return messages.slice(-contextMessageLimit);
@@ -177,6 +185,8 @@ export default function Chat({
     text: string;
   } | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [activeReplyByUserId, setActiveReplyByUserId] = useState<Record<string, string>>({});
+  const [mentionGeneratingMessageId, setMentionGeneratingMessageId] = useState<string | null>(null);
   const hasConfiguredModel = Boolean(provider && model);
   const effectiveProvider: ModelProviderConfig =
     provider ?? {
@@ -256,6 +266,11 @@ export default function Chat({
     () => models.find((m) => m.id === model),
     [model, models],
   );
+  const conversationTurns = useMemo(
+    () => buildConversationTurns(messages),
+    [messages],
+  );
+
   const isWaitingForAssistant =
     status === "submitted" ||
     (status === "streaming" && messages.at(-1)?.role === "user");
@@ -284,9 +299,16 @@ export default function Chat({
 
   const handleDeleteMessage = useCallback(
     (messageId: string) => {
-      setMessages((current) =>
-        current.filter((message) => message.id !== messageId),
-      );
+      setMessages((current) => {
+        const target = current.find((message) => message.id === messageId);
+        return current.filter((message) => {
+          if (message.id === messageId) return false;
+          return !(
+            target?.role === "user" &&
+            message.metadata?.sourceUserMessageId === messageId
+          );
+        });
+      });
     },
     [setMessages],
   );
@@ -354,6 +376,116 @@ export default function Chat({
     [messages, regenerate, setMessages],
   );
 
+  const handleMentionReply = useCallback(
+    async (
+      targetMessageId: string,
+      mentionProvider: ModelProviderConfig,
+      mentionModelId: string,
+    ) => {
+      const targetIndex = messages.findIndex(
+        (message) => message.id === targetMessageId,
+      );
+      if (targetIndex === -1 || messages[targetIndex].role !== "assistant") {
+        return;
+      }
+
+      const sourceUserIndex = getSourceUserIndexForAssistant(
+        messages,
+        targetIndex,
+      );
+      if (sourceUserIndex === -1) {
+        toast.error("无法 @ 模型", {
+          description: "没有找到这条回答对应的用户消息。",
+        });
+        return;
+      }
+
+      const sourceUserMessage = messages[sourceUserIndex];
+      const contextMessages = limitContextMessages(
+        messages
+          .slice(0, sourceUserIndex + 1)
+          .filter((message) => message.metadata?.generatedBy !== "mention"),
+        contextMessageLimit,
+      );
+      const mentionMessage: AppChatMessage = {
+        id: createMessageId(),
+        role: "assistant",
+        metadata: {
+          generatedBy: "mention",
+          sourceUserMessageId: sourceUserMessage.id,
+          providerId: mentionProvider.id,
+          modelId: mentionModelId,
+        },
+        parts: [],
+      };
+
+      setMentionGeneratingMessageId(mentionMessage.id);
+      setActiveReplyByUserId((current) => ({
+        ...current,
+        [sourceUserMessage.id]: mentionMessage.id,
+      }));
+      setMessages((current) =>
+        insertReplyForUser(current, sourceUserMessage.id, mentionMessage),
+      );
+
+      try {
+        const mentionAgent = new ToolLoopAgent({
+          model: createProviderLanguageModel(mentionProvider, mentionModelId),
+          instructions: assistant.systemPrompt,
+          providerOptions: createReasoningProviderOptions(
+            mentionProvider,
+            mentionModelId,
+            reasoningMode,
+          ),
+        });
+        const mentionTransport = new DirectChatTransport({
+          agent: mentionAgent,
+          sendReasoning: true,
+        });
+        const stream = await mentionTransport.sendMessages({
+          trigger: "submit-message",
+          chatId: `${assistant.id}:mention:${mentionMessage.id}`,
+          messageId: undefined,
+          messages: contextMessages,
+          abortSignal: undefined,
+        });
+
+        for await (const partialMessage of readUIMessageStream<AppChatMessage>({
+          message: mentionMessage,
+          stream,
+        })) {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === mentionMessage.id
+                ? {
+                    ...partialMessage,
+                    metadata: mentionMessage.metadata,
+                  }
+                : message,
+            ),
+          );
+        }
+      } catch (error) {
+        toast.error("@ 模型失败", {
+          description: getChatErrorMessage(error),
+        });
+        setMessages((current) =>
+          current.filter((message) => message.id !== mentionMessage.id),
+        );
+      } finally {
+        setMentionGeneratingMessageId(null);
+      }
+    },
+    [
+      assistant.id,
+      assistant.systemPrompt,
+      contextMessageLimit,
+      messages,
+      reasoningMode,
+      setMessages,
+    ],
+  );
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "l") {
@@ -390,67 +522,108 @@ export default function Chat({
       {messages.length > 0 && (
       <Conversation>
         <ConversationContent>
-          {messages.map((message, messageIndex) => (
-            <Message from={message.role} key={message.id}>
-              <MessageContent
-                className="text-[length:var(--chat-message-font-size)]"
-                style={
-                  {
-                    "--chat-message-font-size": `${messageFontSize}px`,
-                  } as CSSProperties
-                }
-              >
-                <MessageAttachments message={message} />
-                {message.parts.map((part, index) => {
-                  if (part.type === "reasoning") {
-                    const isLastMessage =
-                      messageIndex === messages.length - 1;
-                    return (
-                      <Reasoning
-                        key={index}
-                        isStreaming={
-                          isLastMessage && status === "streaming"
-                        }
-                      >
-                        <ReasoningTrigger />
-                        <ReasoningContent>{part.text}</ReasoningContent>
-                      </Reasoning>
-                    );
-                  }
-                  if (part.type === "text") {
-                    if (message.role === "user") {
-                      return (
-                        <div key={index} className="whitespace-pre-wrap">
-                          {part.text}
-                        </div>
-                      );
+          {conversationTurns.map((turn) => {
+            const activeReplyId =
+              activeReplyByUserId[turn.user.id] ?? turn.replies[0]?.id;
+            const activeReply =
+              turn.replies.find((reply) => reply.id === activeReplyId) ??
+              turn.replies[0];
+            const userIndex = messages.findIndex(
+              (message) => message.id === turn.user.id,
+            );
+
+            return (
+              <div key={turn.user.id} className="grid gap-2">
+                <Message from="user">
+                  <MessageBody
+                    isStreaming={false}
+                    message={turn.user}
+                    messageFontSize={messageFontSize}
+                  />
+                  <MessageToolbar
+                    align="end"
+                    canRegenerate={canRegenerateFromMessage(messages, userIndex)}
+                    disabled={status === "submitted" || status === "streaming"}
+                    canEdit
+                    copied={copiedMessageId === turn.user.id}
+                    onCopy={() => handleCopyMessage(turn.user)}
+                    onDelete={() => handleDeleteMessage(turn.user.id)}
+                    onEdit={() =>
+                      setEditingMessage({
+                        id: turn.user.id,
+                        role: turn.user.role,
+                        text: getMessageText(turn.user),
+                      })
                     }
-                    return (
-                      <MessageResponse key={index}>{part.text}</MessageResponse>
-                    );
-                  }
-                  return null;
-                })}
-              </MessageContent>
-              <MessageToolbar
-                align={message.role === "user" ? "end" : "start"}
-                canRegenerate={canRegenerateFromMessage(messages, messageIndex)}
-                disabled={status === "submitted" || status === "streaming"}
-                canEdit={message.role === "user"}
-                copied={copiedMessageId === message.id}
-                onCopy={() => handleCopyMessage(message)}
-                onDelete={() => handleDeleteMessage(message.id)}
-                onEdit={() =>
-                  setEditingMessage({
-                    id: message.id,
-                    role: message.role,
-                    text: getMessageText(message),
-                  })
-                }
-                onRegenerate={() => handleRegenerate(message.id)}
-              />
-            </Message>
-          ))}
+                    onRegenerate={() => handleRegenerate(turn.user.id)}
+                  />
+                </Message>
+
+                {activeReply && (
+                  <Message from="assistant">
+                    <MessageBody
+                      isStreaming={
+                        (activeReply.id === messages.at(-1)?.id &&
+                          status === "streaming") ||
+                        mentionGeneratingMessageId === activeReply.id
+                      }
+                      message={activeReply}
+                      messageFontSize={messageFontSize}
+                    />
+                    <div className="flex items-center gap-1">
+                      {turn.replies.length > 1 && (
+                        <ReplyTabs
+                          activeReplyId={activeReply.id}
+                          fallbackPrimaryLabel={selectedModelData?.name ?? model}
+                          fallbackPrimaryProvider={provider}
+                          providers={providers}
+                          replies={turn.replies}
+                          onValueChange={(replyId) =>
+                            setActiveReplyByUserId((current) => ({
+                              ...current,
+                              [turn.user.id]: replyId,
+                            }))
+                          }
+                        />
+                      )}
+                      <MessageToolbar
+                        align="start"
+                        canMention={providers.some((item) => item.models.length > 0)}
+                        canRegenerate={
+                          activeReply.metadata?.generatedBy !== "mention" &&
+                          canRegenerateFromMessage(
+                            messages,
+                            messages.findIndex(
+                              (message) => message.id === activeReply.id,
+                            ),
+                          )
+                        }
+                        disabled={
+                          status === "submitted" ||
+                          status === "streaming" ||
+                          Boolean(mentionGeneratingMessageId)
+                        }
+                        canEdit={false}
+                        copied={copiedMessageId === activeReply.id}
+                        providers={providers}
+                        onCopy={() => handleCopyMessage(activeReply)}
+                        onDelete={() => handleDeleteMessage(activeReply.id)}
+                        onEdit={() => undefined}
+                        onMention={(mentionProvider, mentionModelId) =>
+                          handleMentionReply(
+                            activeReply.id,
+                            mentionProvider,
+                            mentionModelId,
+                          )
+                        }
+                        onRegenerate={() => handleRegenerate(activeReply.id)}
+                      />
+                    </div>
+                  </Message>
+                )}
+              </div>
+            );
+          })}
           {isWaitingForAssistant && <AssistantLoadingMessage />}
         </ConversationContent>
         <ConversationScrollButton />
@@ -765,25 +938,120 @@ function PromptInputAttachmentsDisplay() {
   );
 }
 
+function MessageBody({
+  isStreaming,
+  message,
+  messageFontSize,
+}: {
+  isStreaming: boolean;
+  message: AppChatMessage;
+  messageFontSize: number;
+}) {
+  const isEmptyAssistantMessage =
+    message.role === "assistant" && message.parts.length === 0;
+
+  return (
+    <MessageContent
+      className="text-[length:var(--chat-message-font-size)]"
+      style={
+        {
+          "--chat-message-font-size": `${messageFontSize}px`,
+        } as CSSProperties
+      }
+    >
+      <MessageAttachments message={message} />
+      {isEmptyAssistantMessage && <LoadingDots />}
+      {message.parts.map((part, index) => {
+        if (part.type === "reasoning") {
+          return (
+            <Reasoning key={index} isStreaming={isStreaming}>
+              <ReasoningTrigger />
+              <ReasoningContent>{part.text}</ReasoningContent>
+            </Reasoning>
+          );
+        }
+        if (part.type === "text") {
+          if (message.role === "user") {
+            return (
+              <div key={index} className="whitespace-pre-wrap break-words">
+                {part.text}
+              </div>
+            );
+          }
+          return <MessageResponse key={index}>{part.text}</MessageResponse>;
+        }
+        return null;
+      })}
+    </MessageContent>
+  );
+}
+
+function ReplyTabs({
+  activeReplyId,
+  fallbackPrimaryLabel,
+  fallbackPrimaryProvider,
+  providers,
+  replies,
+  onValueChange,
+}: {
+  activeReplyId: string;
+  fallbackPrimaryLabel: string;
+  fallbackPrimaryProvider?: ModelProviderConfig;
+  providers: ModelProviderConfig[];
+  replies: AppChatMessage[];
+  onValueChange: (replyId: string) => void;
+}) {
+  return (
+    <ToggleGroup
+      value={[activeReplyId]}
+      onValueChange={(value) => {
+        const nextValue = value[0];
+        if (nextValue) onValueChange(nextValue);
+      }}
+      className="ml-1"
+    >
+      {replies.map((reply, index) => (
+        <ToggleGroupItem
+          key={reply.id}
+          value={reply.id}
+          title={getReplyLabel(reply, providers, index, fallbackPrimaryLabel)}
+        >
+          <ReplyTabIcon
+            fallbackPrimaryProvider={fallbackPrimaryProvider}
+            reply={reply}
+            providers={providers}
+          />
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+}
+
 function MessageToolbar({
   align,
   canEdit,
+  canMention = false,
   canRegenerate,
   copied,
   disabled,
+  providers = [],
   onCopy,
   onEdit,
   onDelete,
+  onMention,
   onRegenerate,
 }: {
   align: "start" | "end";
   canEdit: boolean;
+  canMention?: boolean;
   canRegenerate: boolean;
   copied: boolean;
   disabled: boolean;
+  providers?: ModelProviderConfig[];
   onCopy: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onMention?: (provider: ModelProviderConfig, modelId: string) => void;
   onRegenerate: () => void;
 }) {
   return (
@@ -812,11 +1080,44 @@ function MessageToolbar({
           <PencilIcon className="size-3.5" />
         </Button>
       )}
+      {canMention && onMention && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={disabled}
+                title="让其他模型回答"
+              />
+            }
+          >
+            <AtSignIcon className="size-3.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-72 w-64 overflow-y-auto">
+            {providers.map((provider) =>
+              provider.models.map((model) => (
+                <DropdownMenuItem
+                  key={`${provider.id}:${model.id}`}
+                  onClick={() => onMention(provider, model.id)}
+                >
+                  <ModelSelectorLogo
+                    provider={getProviderLogo(provider)}
+                    className="size-4"
+                  />
+                  <span className="min-w-0 truncate">
+                    {getProviderDisplayName(provider)} / {model.name || model.id}
+                  </span>
+                </DropdownMenuItem>
+              )),
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       <Button
         variant="ghost"
         size="icon-sm"
         onClick={onDelete}
-        disabled={disabled}
         title="删除"
       >
         <Trash2Icon className="size-3.5" />
@@ -834,6 +1135,129 @@ function MessageToolbar({
       )}
     </div>
   );
+}
+
+type ConversationTurn = {
+  user: AppChatMessage;
+  replies: AppChatMessage[];
+};
+
+function buildConversationTurns(messages: AppChatMessage[]): ConversationTurn[] {
+  const turns: ConversationTurn[] = [];
+  const turnByUserId = new Map<string, ConversationTurn>();
+
+  messages.forEach((message, index) => {
+    if (message.role === "user") {
+      const turn = { user: message, replies: [] };
+      turns.push(turn);
+      turnByUserId.set(message.id, turn);
+      return;
+    }
+
+    if (message.role !== "assistant") return;
+
+    const sourceUserMessageId =
+      message.metadata?.sourceUserMessageId ??
+      messages[findPreviousUserMessageIndex(messages, index)]?.id;
+    if (!sourceUserMessageId) return;
+
+    const turn = turnByUserId.get(sourceUserMessageId);
+    if (turn) {
+      turn.replies.push(message);
+    }
+  });
+
+  return turns;
+}
+
+function getSourceUserIndexForAssistant(
+  messages: AppChatMessage[],
+  assistantIndex: number,
+) {
+  const sourceUserMessageId = messages[assistantIndex]?.metadata?.sourceUserMessageId;
+  if (sourceUserMessageId) {
+    return messages.findIndex((message) => message.id === sourceUserMessageId);
+  }
+
+  return findPreviousUserMessageIndex(messages, assistantIndex);
+}
+
+function insertReplyForUser(
+  messages: AppChatMessage[],
+  sourceUserMessageId: string,
+  reply: AppChatMessage,
+) {
+  const sourceUserIndex = messages.findIndex(
+    (message) => message.id === sourceUserMessageId,
+  );
+  if (sourceUserIndex === -1) return [...messages, reply];
+
+  let insertIndex = sourceUserIndex + 1;
+  while (insertIndex < messages.length) {
+    const message = messages[insertIndex];
+    if (message.role === "user") break;
+    if (
+      message.role === "assistant" &&
+      (message.metadata?.sourceUserMessageId === sourceUserMessageId ||
+        !message.metadata?.sourceUserMessageId)
+    ) {
+      insertIndex++;
+      continue;
+    }
+    break;
+  }
+
+  return [
+    ...messages.slice(0, insertIndex),
+    reply,
+    ...messages.slice(insertIndex),
+  ];
+}
+
+function ReplyTabIcon({
+  fallbackPrimaryProvider,
+  reply,
+  providers,
+}: {
+  fallbackPrimaryProvider?: ModelProviderConfig;
+  reply: AppChatMessage;
+  providers: ModelProviderConfig[];
+}) {
+  const provider =
+    providers.find((provider) => provider.id === reply.metadata?.providerId) ??
+    (reply.metadata?.generatedBy === "mention" ? undefined : fallbackPrimaryProvider);
+
+  return provider ? (
+    <ModelSelectorLogo provider={getProviderLogo(provider)} className="size-3.5" />
+  ) : (
+    <span className="size-3.5 rounded-sm bg-muted-foreground/30" />
+  );
+}
+
+function getReplyLabel(
+  reply: AppChatMessage,
+  providers: ModelProviderConfig[],
+  index: number,
+  fallbackPrimaryLabel: string,
+) {
+  const provider = providers.find(
+    (provider) => provider.id === reply.metadata?.providerId,
+  );
+  const model = provider?.models.find(
+    (model) => model.id === reply.metadata?.modelId,
+  );
+
+  if (reply.metadata?.generatedBy !== "mention" && !reply.metadata?.modelId) {
+    return fallbackPrimaryLabel;
+  }
+
+  return model?.name ?? reply.metadata?.modelId ?? `回答 ${index + 1}`;
+}
+
+function createMessageId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
 function canRegenerateFromMessage(
@@ -890,23 +1314,29 @@ function AssistantLoadingMessage() {
   return (
     <Message from="assistant">
       <MessageContent className="py-2">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          {[0, 1, 2].map((index) => (
-            <motion.span
-              key={index}
-              className="size-2 rounded-full bg-current"
-              animate={{ y: [0, -4, 0], opacity: [0.5, 1, 0.5] }}
-              transition={{
-                duration: 0.8,
-                repeat: Infinity,
-                delay: index * 0.12,
-                ease: "easeInOut",
-              }}
-            />
-          ))}
-        </div>
+        <LoadingDots />
       </MessageContent>
     </Message>
+  );
+}
+
+function LoadingDots() {
+  return (
+    <div className="flex items-center gap-1.5 py-1 text-muted-foreground">
+      {[0, 1, 2].map((index) => (
+        <motion.span
+          key={index}
+          className="size-2 rounded-full bg-current"
+          animate={{ y: [0, -4, 0], opacity: [0.5, 1, 0.5] }}
+          transition={{
+            duration: 0.8,
+            repeat: Infinity,
+            delay: index * 0.12,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
