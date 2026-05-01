@@ -418,6 +418,13 @@ export default function Chat({
                     );
                   }
                   if (part.type === "text") {
+                    if (message.role === "user") {
+                      return (
+                        <div key={index} className="whitespace-pre-wrap">
+                          {part.text}
+                        </div>
+                      );
+                    }
                     return (
                       <MessageResponse key={index}>{part.text}</MessageResponse>
                     );
