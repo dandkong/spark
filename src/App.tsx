@@ -4,7 +4,11 @@ import { Toaster } from "sonner";
 import AssistantSidebar from "@/components/AssistantSidebar";
 import AssistantEditorDialog from "./components/AssistantEditorDialog";
 import ModelEditorDialog from "./components/ModelEditorDialog";
-import Settings from "./components/Settings";
+import SettingsLayout from "./components/settings/SettingsLayout";
+import GeneralSettings from "./components/settings/GeneralSettings";
+import AssistantSettings from "./components/settings/AssistantSettings";
+import ProviderSettings from "./components/settings/ProviderSettings";
+import AboutSettings from "./components/settings/AboutSettings";
 import HeaderControls from "@/components/HeaderControls";
 import {
   loadSettings,
@@ -29,6 +33,7 @@ import type {
   ModelProviderConfig,
 } from "@/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom";
 
 const initialModelProviders: ModelProviderConfig[] = BUILTIN_MODEL_PROVIDERS;
 
@@ -69,7 +74,7 @@ type ModelDialogState =
   | { open: true; providerId: string; model: ModelConfig | null };
 
 function App() {
-  const [view, setView] = useState<"chat" | "settings">("chat");
+  const navigate = useNavigate();
   const [assistants, setAssistants] =
     useState<AssistantConfig[]>(initialAssistants);
   const [modelProviders, setModelProviders] =
@@ -174,7 +179,7 @@ function App() {
       ...current,
       activeAssistantId: assistantId,
     }));
-    setView("chat");
+    navigate("/");
   };
 
   const handleAssistantMessagesChange = useCallback(
@@ -378,73 +383,97 @@ function App() {
           />
           <main className="flex min-w-0 flex-1 flex-col">
             <div className="flex h-12 shrink-0 items-center justify-end pr-1" data-tauri-drag-region>
-              <HeaderControls onSettingsClick={() => setView(view === "settings" ? "chat" : "settings")} isSettingsActive={view === "settings"} />
+              <HeaderControls />
             </div>
-            {view === "settings" ? (
-              <Settings
-                assistants={assistants}
-                preferences={preferences}
-                modelProviders={modelProviders}
-                onPreferencesChange={setPreferences}
-                onCreateAssistant={openCreateAssistant}
-                onEditAssistant={openEditAssistant}
-                onDeleteAssistant={handleDeleteAssistant}
-                onCreateModel={(providerId) =>
-                  setModelDialog({ open: true, providerId, model: null })
-                }
-                onAddModel={handleAddModel}
-                onEditModel={(providerId, model) =>
-                  setModelDialog({ open: true, providerId, model })
-                }
-                onDeleteModel={handleDeleteModel}
-                onCreateProvider={handleCreateProvider}
-                onDeleteProvider={handleDeleteProvider}
-                onUpdateProvider={handleUpdateProvider}
-                onFetchModels={handleFetchModels}
-              />
-            ) : (
-              assistants.map((assistant) => {
-                const { provider, models, model } =
-                  getAssistantChatConfig(assistant);
-                const isActive = assistant.id === activeAssistant.id;
+            <Routes>
+              <Route path="/settings" element={
+                <SettingsLayout
+                  modelProviders={modelProviders}
+                  onCreateProvider={handleCreateProvider}
+                />
+              }>
+                <Route index element={<Navigate to="general" replace />} />
+                <Route path="general" element={
+                  <GeneralSettings
+                    settings={preferences}
+                    onChange={setPreferences}
+                  />
+                } />
+                <Route path="assistants" element={
+                  <AssistantSettings
+                    assistants={assistants}
+                    onCreate={openCreateAssistant}
+                    onEdit={openEditAssistant}
+                    onDelete={handleDeleteAssistant}
+                  />
+                } />
+                <Route path="about" element={<AboutSettings />} />
+                <Route path=":providerId" element={
+                  <ProviderRoute
+                    modelProviders={modelProviders}
+                    onCreateModel={(providerId) =>
+                      setModelDialog({ open: true, providerId, model: null })
+                    }
+                    onAddModel={handleAddModel}
+                    onEditModel={(providerId, model) =>
+                      setModelDialog({ open: true, providerId, model })
+                    }
+                    onDeleteModel={handleDeleteModel}
+                    onDeleteProvider={(providerId) => {
+                      handleDeleteProvider(providerId);
+                      navigate("/settings/assistants");
+                    }}
+                    onUpdateProvider={handleUpdateProvider}
+                    onFetchModels={handleFetchModels}
+                  />
+                } />
+              </Route>
+              <Route path="*" element={
+                <>
+                  {assistants.map((assistant) => {
+                    const { provider, models, model } =
+                      getAssistantChatConfig(assistant);
+                    const isActive = assistant.id === activeAssistant.id;
 
-                return (
-                  <div
-                    key={assistant.id}
-                    className={isActive ? "contents" : "hidden"}
-                  >
-                    <Chat
-                      assistant={assistant}
-                      providers={configuredProviders}
-                      provider={provider}
-                      models={models}
-                      model={model}
-                      messages={assistantMessages[assistant.id] ?? []}
-                      messageFontSize={preferences.chatMessageFontSize}
-                      reasoningMode={preferences.reasoningMode}
-                      contextMessageLimit={preferences.contextMessageLimit}
-                      isActive={isActive}
-                      onReasoningModeChange={(reasoningMode) =>
-                        setPreferences((current) => ({
-                          ...current,
-                          reasoningMode,
-                        }))
-                      }
-                      onMessagesChange={handleAssistantMessagesChange}
-                      onModelChange={(providerId, modelId) =>
-                        setAssistants((current) =>
-                          current.map((item) =>
-                            item.id === assistant.id
-                              ? { ...item, providerId, modelId }
-                              : item,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                );
-              })
-            )}
+                    return (
+                      <div
+                        key={assistant.id}
+                        className={isActive ? "contents" : "hidden"}
+                      >
+                        <Chat
+                          assistant={assistant}
+                          providers={configuredProviders}
+                          provider={provider}
+                          models={models}
+                          model={model}
+                          messages={assistantMessages[assistant.id] ?? []}
+                          messageFontSize={preferences.chatMessageFontSize}
+                          reasoningMode={preferences.reasoningMode}
+                          contextMessageLimit={preferences.contextMessageLimit}
+                          isActive={isActive}
+                          onReasoningModeChange={(reasoningMode) =>
+                            setPreferences((current) => ({
+                              ...current,
+                              reasoningMode,
+                            }))
+                          }
+                          onMessagesChange={handleAssistantMessagesChange}
+                          onModelChange={(providerId, modelId) =>
+                            setAssistants((current) =>
+                              current.map((item) =>
+                                item.id === assistant.id
+                                  ? { ...item, providerId, modelId }
+                                  : item,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </>
+              } />
+            </Routes>
           </main>
       </div>
       <AssistantEditorDialog
@@ -469,6 +498,47 @@ function App() {
       />
       <Toaster position="top-center" />
     </TooltipProvider>
+  );
+}
+
+function ProviderRoute({
+  modelProviders,
+  onCreateModel,
+  onAddModel,
+  onEditModel,
+  onDeleteModel,
+  onDeleteProvider,
+  onUpdateProvider,
+  onFetchModels,
+}: {
+  modelProviders: ModelProviderConfig[];
+  onCreateModel: (providerId: string) => void;
+  onAddModel: (providerId: string, model: ModelConfig) => void;
+  onEditModel: (providerId: string, model: ModelConfig) => void;
+  onDeleteModel: (providerId: string, modelId: string) => void;
+  onDeleteProvider: (providerId: string) => void;
+  onUpdateProvider: (
+    providerId: string,
+    patch: Partial<Pick<ModelProviderConfig, "name" | "apiKey" | "baseURL">>,
+  ) => void;
+  onFetchModels: (providerId: string) => Promise<ModelConfig[]>;
+}) {
+  const { providerId } = useParams<{ providerId: string }>();
+  const provider = modelProviders.find((p) => p.id === providerId);
+
+  if (!provider) return <Navigate to="/settings/assistants" replace />;
+
+  return (
+    <ProviderSettings
+      provider={provider}
+      onUpdateProvider={(patch) => onUpdateProvider(provider.id, patch)}
+      onCreate={() => onCreateModel(provider.id)}
+      onAdd={(model) => onAddModel(provider.id, model)}
+      onEdit={(model) => onEditModel(provider.id, model)}
+      onDelete={(modelId) => onDeleteModel(provider.id, modelId)}
+      onFetchModels={() => onFetchModels(provider.id)}
+      onDeleteProvider={() => onDeleteProvider(provider.id)}
+    />
   );
 }
 

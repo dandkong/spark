@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   MinusIcon,
   MoonIcon,
@@ -9,8 +10,6 @@ import {
   SunIcon,
   XIcon,
 } from "lucide-react";
-
-// --- Theme ---
 
 type Theme = "light" | "dark" | "system";
 
@@ -65,8 +64,6 @@ const nextTheme: Record<Theme, Theme> = {
   system: "light",
 };
 
-// --- Window ---
-
 const isTauri = "__TAURI_INTERNALS__" in window;
 
 async function handleMinimize() {
@@ -87,16 +84,12 @@ async function handleClose() {
   getCurrentWindow().close();
 }
 
-// --- Component ---
-
-type HeaderControlsProps = {
-  onSettingsClick?: () => void;
-  isSettingsActive?: boolean;
-};
-
-export default function HeaderControls({ onSettingsClick, isSettingsActive }: HeaderControlsProps) {
+export default function HeaderControls() {
   const { theme, setTheme } = useTheme();
   const ThemeIcon = themeIcons[theme];
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isSettings = location.pathname.startsWith("/settings");
 
   return (
     <>
@@ -111,8 +104,8 @@ export default function HeaderControls({ onSettingsClick, isSettingsActive }: He
       <Button
         variant="ghost"
         size="icon"
-        onClick={onSettingsClick}
-        className={isSettingsActive ? "bg-muted" : ""}
+        onClick={() => navigate(isSettings ? "/" : "/settings")}
+        className={isSettings ? "bg-muted" : ""}
         title="设置"
       >
         <SettingsIcon className="size-4" />

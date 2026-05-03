@@ -589,15 +589,12 @@ export default function Chat({
                       <MessageToolbar
                         align="start"
                         canMention={providers.some((item) => item.models.length > 0)}
-                        canRegenerate={
-                          activeReply.metadata?.generatedBy !== "mention" &&
-                          canRegenerateFromMessage(
-                            messages,
-                            messages.findIndex(
-                              (message) => message.id === activeReply.id,
-                            ),
-                          )
-                        }
+                        canRegenerate={canRegenerateFromMessage(
+                          messages,
+                          messages.findIndex(
+                            (message) => message.id === activeReply.id,
+                          ),
+                        )}
                         disabled={
                           status === "submitted" ||
                           status === "streaming" ||
