@@ -76,7 +76,7 @@ import {
   AtSignIcon,
   CheckIcon,
   ClipboardCheckIcon,
-  LightbulbIcon,
+  BrainIcon,
   CopyIcon,
   EraserIcon,
   PaperclipIcon,
@@ -736,7 +736,7 @@ export default function Chat({
                       />
                     }
                   >
-                    <LightbulbIcon className="size-4" />
+                    <BrainIcon className="size-4" />
                     <span>{reasoningModeLabels[reasoningMode]}</span>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-28">
