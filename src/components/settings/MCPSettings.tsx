@@ -73,6 +73,14 @@ export default function MCPSettings({
     onChange(servers.filter((server) => server.id !== serverId));
   };
 
+  const handleToggleEnabled = (serverId: string, enabled: boolean) => {
+    onChange(
+      servers.map((server) =>
+        server.id === serverId ? { ...server, enabled } : server,
+      ),
+    );
+  };
+
   return (
     <SettingsContent>
       <SettingsHeader
@@ -96,16 +104,17 @@ export default function MCPSettings({
                 <div className="truncate text-sm font-medium">
                   {server.name}
                 </div>
-                {!server.enabled && (
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                    已停用
-                  </span>
-                )}
               </div>
-              <div className="mt-1 truncate text-sm text-muted-foreground">
-                {server.transportType.toUpperCase()} · {server.url}
+              <div className="mt-1 text-sm text-muted-foreground">
+                {server.transportType.toUpperCase()}
               </div>
             </div>
+            <Switch
+              checked={server.enabled}
+              onCheckedChange={(checked) =>
+                handleToggleEnabled(server.id, checked)
+              }
+            />
             <Button
               variant="ghost"
               size="icon-sm"
