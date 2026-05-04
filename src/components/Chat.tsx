@@ -1188,6 +1188,7 @@ function MessageToolbar({
         variant="ghost"
         size="icon-sm"
         onClick={onDelete}
+        disabled={disabled}
         title="删除"
       >
         <Trash2Icon className="size-3.5" />
