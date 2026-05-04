@@ -30,6 +30,17 @@ export type AssistantConfig = {
   modelId?: string;
 };
 
+export type MCPTransportType = "http" | "sse";
+
+export type MCPServerConfig = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  transportType: MCPTransportType;
+  url: string;
+  headers: Record<string, string>;
+};
+
 export type ModelConfig = {
   id: string;
   name: string;

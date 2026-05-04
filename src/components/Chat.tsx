@@ -64,13 +64,24 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool";
 import { useChat } from "@ai-sdk/react";
 import {
   DirectChatTransport,
   ToolLoopAgent,
+  getToolName,
+  isToolUIPart,
   readUIMessageStream,
   type ChatTransport,
+  type DynamicToolUIPart,
   type FileUIPart,
+  type ToolUIPart,
 } from "ai";
 import {
   AtSignIcon,
@@ -91,6 +102,7 @@ import { cn } from "@/lib/utils";
 import type {
   AppChatMessage,
   AssistantConfig,
+  MCPServerConfig,
   ModelConfig,
   ModelProviderConfig,
   ReasoningMode,
@@ -101,6 +113,7 @@ import {
   getProviderDisplayName,
   getProviderLogo,
 } from "@/lib/model-providers";
+import { getEnabledMCPTools } from "@/lib/mcp";
 
 const reasoningModeLabels: Record<ReasoningMode, string> = {
   auto: "自动",
@@ -157,6 +170,7 @@ type ChatProps = {
   messageFontSize: number;
   reasoningMode: ReasoningMode;
   contextMessageLimit: number | null;
+  mcpServers: MCPServerConfig[];
   isActive: boolean;
   onReasoningModeChange: (reasoningMode: ReasoningMode) => void;
   onMessagesChange: (assistantId: string, messages: AppChatMessage[]) => void;
@@ -173,6 +187,7 @@ export default function Chat({
   messageFontSize,
   reasoningMode,
   contextMessageLimit,
+  mcpServers,
   isActive,
   onReasoningModeChange,
   onMessagesChange,
@@ -215,11 +230,19 @@ export default function Chat({
         model: createProviderLanguageModel(effectiveProvider, effectiveModel),
         instructions: assistant.systemPrompt,
         providerOptions: reasoningProviderOptions,
+        prepareCall: async (options) => {
+          const tools = await getEnabledMCPTools(mcpServers);
+          return {
+            ...options,
+            tools,
+          };
+        },
       }),
     [
       assistant.systemPrompt,
       effectiveModel,
       effectiveProvider,
+      mcpServers,
       reasoningProviderOptions,
     ],
   );
@@ -977,9 +1000,36 @@ function MessageBody({
           }
           return <MessageResponse key={index}>{part.text}</MessageResponse>;
         }
+        if (isToolUIPart(part)) {
+          return <ToolCallView key={index} part={part} />;
+        }
         return null;
       })}
     </MessageContent>
+  );
+}
+
+function ToolCallView({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
+  return (
+    <Tool>
+      {part.type === "dynamic-tool" ? (
+        <ToolHeader
+          type="dynamic-tool"
+          state={part.state}
+          toolName={part.toolName}
+          title={part.title}
+        />
+      ) : (
+        <ToolHeader type={part.type} state={part.state} title={getToolName(part)} />
+      )}
+      <ToolContent>
+        {part.input !== undefined && <ToolInput input={part.input} />}
+        <ToolOutput
+          output={"output" in part ? part.output : undefined}
+          errorText={"errorText" in part ? part.errorText : undefined}
+        />
+      </ToolContent>
+    </Tool>
   );
 }
 

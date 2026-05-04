@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   BotIcon,
+  CableIcon,
   InfoIcon,
   PlusIcon,
   SettingsIcon,
@@ -58,6 +59,17 @@ export default function SettingsLayout({
               助手
             </Button>
 
+            <Button
+              variant="ghost"
+              className={cn(
+                "h-10 justify-start",
+                section === "mcp" && "bg-muted",
+              )}
+              onClick={() => navigate("/settings/mcp")}
+            >
+              <CableIcon className="size-4" />
+              MCP
+            </Button>
             <Button
               variant="ghost"
               className={cn(

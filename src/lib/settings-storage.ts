@@ -2,6 +2,8 @@ import { load, type Store } from "@tauri-apps/plugin-store";
 import { isBuiltinProvider } from "@/lib/model-providers";
 import type {
   AssistantConfig,
+  MCPServerConfig,
+  MCPTransportType,
   ModelProviderConfig,
   ModelProviderType,
 } from "@/types";
@@ -9,10 +11,12 @@ import type {
 const STORE_PATH = "settings.json";
 const ASSISTANTS_KEY = "assistants";
 const MODEL_PROVIDERS_KEY = "modelProviders";
+const MCP_SERVERS_KEY = "mcpServers";
 
 type SettingsSnapshot = {
   assistants: AssistantConfig[];
   modelProviders: ModelProviderConfig[];
+  mcpServers: MCPServerConfig[];
 };
 
 let storePromise: Promise<Store> | null = null;
@@ -29,6 +33,7 @@ export async function loadSettings(fallback: SettingsSnapshot) {
       await store.get<unknown[]>(ASSISTANTS_KEY);
     const storedModelProviders =
       await store.get<unknown[]>(MODEL_PROVIDERS_KEY);
+    const storedMcpServers = await store.get<unknown[]>(MCP_SERVERS_KEY);
 
     const assistants = Array.isArray(storedAssistants)
       ? storedAssistants.filter(isAssistantConfig)
@@ -39,6 +44,9 @@ export async function loadSettings(fallback: SettingsSnapshot) {
       modelProviders: Array.isArray(storedModelProviders)
         ? normalizeModelProviders(storedModelProviders, fallback.modelProviders)
         : fallback.modelProviders,
+      mcpServers: Array.isArray(storedMcpServers)
+        ? storedMcpServers.filter(isMCPServerConfig)
+        : fallback.mcpServers,
     };
   } catch {
     return fallback;
@@ -67,6 +75,16 @@ export async function saveModelProviders(
   }
 }
 
+export async function saveMCPServers(mcpServers: MCPServerConfig[]) {
+  try {
+    const store = await getStore();
+    await store.set(MCP_SERVERS_KEY, mcpServers);
+    await store.save();
+  } catch {
+    // Store is unavailable in plain browser dev mode.
+  }
+}
+
 function isAssistantConfig(value: unknown): value is AssistantConfig {
   if (!value || typeof value !== "object") return false;
 
@@ -78,6 +96,30 @@ function isAssistantConfig(value: unknown): value is AssistantConfig {
     (assistant.emoji === undefined || typeof assistant.emoji === "string") &&
     (assistant.modelId === undefined || typeof assistant.modelId === "string")
   );
+}
+
+function isMCPServerConfig(value: unknown): value is MCPServerConfig {
+  if (!value || typeof value !== "object") return false;
+
+  const server = value as Record<string, unknown>;
+  const headers = server.headers;
+  return (
+    typeof server.id === "string" &&
+    typeof server.name === "string" &&
+    typeof server.enabled === "boolean" &&
+    isMCPTransportType(server.transportType) &&
+    typeof server.url === "string" &&
+    !!headers &&
+    typeof headers === "object" &&
+    !Array.isArray(headers) &&
+    Object.entries(headers).every(
+      ([key, value]) => typeof key === "string" && typeof value === "string",
+    )
+  );
+}
+
+function isMCPTransportType(value: unknown): value is MCPTransportType {
+  return value === "http" || value === "sse";
 }
 
 function normalizeModelProviders(

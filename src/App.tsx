@@ -8,11 +8,13 @@ import SettingsLayout from "./components/settings/SettingsLayout";
 import GeneralSettings from "./components/settings/GeneralSettings";
 import AssistantSettings from "./components/settings/AssistantSettings";
 import ProviderSettings from "./components/settings/ProviderSettings";
+import MCPSettings from "./components/settings/MCPSettings";
 import AboutSettings from "./components/settings/AboutSettings";
 import HeaderControls from "@/components/HeaderControls";
 import {
   loadSettings,
   saveAssistants,
+  saveMCPServers,
   saveModelProviders,
 } from "@/lib/settings-storage";
 import {
@@ -29,6 +31,7 @@ import { fetchProviderModels } from "@/lib/models-dev";
 import type {
   AppChatMessage,
   AssistantConfig,
+  MCPServerConfig,
   ModelConfig,
   ModelProviderConfig,
 } from "@/types";
@@ -62,6 +65,7 @@ const defaultPreferences: UserPreferences = {
 const defaultSettings = {
   assistants: initialAssistants,
   modelProviders: initialModelProviders,
+  mcpServers: [] as MCPServerConfig[],
 };
 
 type AssistantDialogState =
@@ -79,6 +83,7 @@ function App() {
     useState<AssistantConfig[]>(initialAssistants);
   const [modelProviders, setModelProviders] =
     useState<ModelProviderConfig[]>(initialModelProviders);
+  const [mcpServers, setMcpServers] = useState<MCPServerConfig[]>([]);
   const [preferences, setPreferences] =
     useState<UserPreferences>(defaultPreferences);
   const [assistantMessages, setAssistantMessages] = useState<
@@ -133,6 +138,7 @@ function App() {
     ]).then(([settings, prefs]) => {
       if (cancelled) return;
       setModelProviders(settings.modelProviders);
+      setMcpServers(settings.mcpServers);
       setAssistants(
         ensureAssistantModels(settings.assistants, settings.modelProviders),
       );
@@ -154,6 +160,11 @@ function App() {
     if (!settingsLoaded) return;
     saveModelProviders(modelProviders);
   }, [modelProviders, settingsLoaded]);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    saveMCPServers(mcpServers);
+  }, [mcpServers, settingsLoaded]);
 
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -407,6 +418,12 @@ function App() {
                     onDelete={handleDeleteAssistant}
                   />
                 } />
+                <Route path="mcp" element={
+                  <MCPSettings
+                    servers={mcpServers}
+                    onChange={setMcpServers}
+                  />
+                } />
                 <Route path="about" element={<AboutSettings />} />
                 <Route path=":providerId" element={
                   <ProviderRoute
@@ -450,6 +467,7 @@ function App() {
                           messageFontSize={preferences.chatMessageFontSize}
                           reasoningMode={preferences.reasoningMode}
                           contextMessageLimit={preferences.contextMessageLimit}
+                          mcpServers={mcpServers}
                           isActive={isActive}
                           onReasoningModeChange={(reasoningMode) =>
                             setPreferences((current) => ({
