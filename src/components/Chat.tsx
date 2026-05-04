@@ -121,6 +121,28 @@ const reasoningModeLabels: Record<ReasoningMode, string> = {
   on: "开启",
 };
 
+function buildAssistantInstructions(systemPrompt: string) {
+  const now = new Date();
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "local";
+  const currentDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+
+  return `${systemPrompt.trimEnd()}\n\n---\nRuntime context:\n- Current date: ${currentDate}, ${formatUtcOffset(now)}`;
+}
+
+function formatUtcOffset(date: Date) {
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absoluteMinutes = Math.abs(offsetMinutes);
+  const hours = Math.floor(absoluteMinutes / 60).toString().padStart(2, "0");
+  const minutes = (absoluteMinutes % 60).toString().padStart(2, "0");
+  return `UTC${sign}${hours}:${minutes}`;
+}
+
 class ContextLimitedChatTransport implements ChatTransport<AppChatMessage> {
   constructor(
     private readonly transport: ChatTransport<AppChatMessage>,
@@ -214,6 +236,7 @@ export default function Chat({
       models: [],
     };
   const effectiveModel = model || "placeholder";
+  const assistantInstructions = buildAssistantInstructions(assistant.systemPrompt);
   const reasoningProviderOptions = useMemo(
     () =>
       createReasoningProviderOptions(
@@ -228,7 +251,7 @@ export default function Chat({
     () =>
       new ToolLoopAgent({
         model: createProviderLanguageModel(effectiveProvider, effectiveModel),
-        instructions: assistant.systemPrompt,
+        instructions: assistantInstructions,
         providerOptions: reasoningProviderOptions,
         prepareCall: async (options) => {
           const tools = await getEnabledMCPTools(mcpServers);
@@ -239,7 +262,7 @@ export default function Chat({
         },
       }),
     [
-      assistant.systemPrompt,
+      assistantInstructions,
       effectiveModel,
       effectiveProvider,
       mcpServers,
@@ -454,7 +477,7 @@ export default function Chat({
       try {
         const mentionAgent = new ToolLoopAgent({
           model: createProviderLanguageModel(mentionProvider, mentionModelId),
-          instructions: assistant.systemPrompt,
+          instructions: assistantInstructions,
           providerOptions: createReasoningProviderOptions(
             mentionProvider,
             mentionModelId,
@@ -501,7 +524,7 @@ export default function Chat({
     },
     [
       assistant.id,
-      assistant.systemPrompt,
+      assistantInstructions,
       contextMessageLimit,
       messages,
       reasoningMode,
