@@ -6,6 +6,17 @@
   "permissions": [
     "core:default",
     "opener:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "http://*/*"
+        },
+        {
+          "url": "https://*/*"
+        }
+      ]
+    },
     "store:default",
     "window-state:default",
     "core:window:allow-minimize",

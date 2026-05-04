@@ -10,6 +10,16 @@ type MCPRuntime = {
 
 const MCP_SERVER_INIT_TIMEOUT_MS = 15_000;
 
+const isTauriRuntime = () =>
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+const mcpFetch: typeof fetch = async (input, init) => {
+  if (!isTauriRuntime()) return globalThis.fetch(input, init);
+
+  const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
+  return tauriFetch(input, init);
+};
+
 type PendingMCPRuntime = {
   signature: string;
   promise: Promise<MCPRuntime>;
@@ -86,7 +96,7 @@ async function createRuntime(
             url: server.url,
             headers: server.headers,
             fetch: (input, init) =>
-              globalThis.fetch(input, {
+              mcpFetch(input, {
                 ...init,
                 signal: abortController.signal,
               }),
