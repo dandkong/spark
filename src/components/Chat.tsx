@@ -1013,8 +1013,10 @@ function MessageBody({
       {isEmptyAssistantMessage && <LoadingDots />}
       {message.parts.map((part, index) => {
         if (part.type === "reasoning") {
+          const isReasoningStreaming = isStreaming && part.state !== "done";
+
           return (
-            <Reasoning key={index} isStreaming={isStreaming}>
+            <Reasoning key={index} isStreaming={isReasoningStreaming}>
               <ReasoningTrigger />
               <ReasoningContent>{part.text}</ReasoningContent>
             </Reasoning>
