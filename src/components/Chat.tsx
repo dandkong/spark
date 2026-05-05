@@ -322,9 +322,14 @@ export default function Chat({
     (status === "streaming" && messages.at(-1)?.role === "user");
 
   const handleClear = useCallback(() => {
+    if (!isActive) return;
+
+    if (status === "submitted" || status === "streaming") {
+      stop();
+    }
     setMessages([]);
     setInput("");
-  }, [setMessages]);
+  }, [isActive, setMessages, status, stop]);
 
   const handleCopyMessage = useCallback(async (message: AppChatMessage) => {
     const text = getMessageText(message);
@@ -533,6 +538,8 @@ export default function Chat({
   );
 
   useEffect(() => {
+    if (!isActive) return;
+
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "l") {
         e.preventDefault();
@@ -541,7 +548,7 @@ export default function Chat({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleClear]);
+  }, [handleClear, isActive]);
 
   const handleSubmit = useCallback(
     (message: PromptInputMessage) => {
