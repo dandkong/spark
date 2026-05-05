@@ -256,6 +256,10 @@ function App() {
     }
   };
 
+  const handleReorderAssistant = (nextAssistants: AssistantConfig[]) => {
+    setAssistants(nextAssistants);
+  };
+
   const handleSaveModel = (model: ModelConfig, previousModelId?: string) => {
     if (!modelDialog.providerId) return;
     const providerId = modelDialog.providerId;
@@ -403,7 +407,7 @@ function App() {
                   onCreateProvider={handleCreateProvider}
                 />
               }>
-                <Route index element={<Navigate to="general" replace />} />
+                <Route index element={<Navigate to="assistants" replace />} />
                 <Route path="general" element={
                   <GeneralSettings
                     settings={preferences}
@@ -416,6 +420,7 @@ function App() {
                     onCreate={openCreateAssistant}
                     onEdit={openEditAssistant}
                     onDelete={handleDeleteAssistant}
+                    onReorder={handleReorderAssistant}
                   />
                 } />
                 <Route path="mcp" element={
