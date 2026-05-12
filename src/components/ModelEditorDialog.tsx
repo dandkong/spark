@@ -16,6 +16,7 @@ import {
   PaperclipIcon,
   WrenchIcon,
 } from "lucide-react";
+import { useI18n } from "@/i18n";
 
 type ModelEditorDialogProps = {
   model: ModelConfig | null;
@@ -42,22 +43,22 @@ const hasVision = (model: ModelConfig) =>
 const modelCapabilities = [
   {
     key: "attachment",
-    label: "附件",
+    labelKey: "modelDialog.capability.attachment",
     icon: PaperclipIcon,
   },
   {
     key: "vision",
-    label: "图片",
+    labelKey: "modelDialog.capability.vision",
     icon: ImageIcon,
   },
   {
     key: "reasoning",
-    label: "推理",
+    labelKey: "modelDialog.capability.reasoning",
     icon: BrainIcon,
   },
   {
     key: "tool_call",
-    label: "工具",
+    labelKey: "modelDialog.capability.tool",
     icon: WrenchIcon,
   },
 ] as const;
@@ -68,6 +69,7 @@ export default function ModelEditorDialog({
   onOpenChange,
   onSave,
 }: ModelEditorDialogProps) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<ModelConfig>(emptyModel);
 
   useEffect(() => {
@@ -121,12 +123,12 @@ export default function ModelEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>编辑模型</DialogTitle>
+          <DialogTitle>{t("modelDialog.title")}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4">
           <label className="grid gap-2">
-            <span className="text-sm font-medium">名称</span>
+            <span className="text-sm font-medium">{t("common.name")}</span>
             <Input
               value={draft.name}
               onChange={(event) =>
@@ -152,7 +154,7 @@ export default function ModelEditorDialog({
           </label>
 
           <div className="grid gap-2">
-            <span className="text-sm font-medium">模型能力</span>
+            <span className="text-sm font-medium">{t("modelDialog.capabilities")}</span>
             <div className="flex flex-wrap gap-2">
               {modelCapabilities.map((capability) => {
                 const selected =
@@ -173,7 +175,7 @@ export default function ModelEditorDialog({
                     ) : (
                       <Icon className="size-3.5" />
                     )}
-                    {capability.label}
+                    {t(capability.labelKey)}
                   </Button>
                 );
               })}
@@ -183,9 +185,9 @@ export default function ModelEditorDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t("common.cancel")}
           </Button>
-          <Button onClick={handleSave}>保存</Button>
+          <Button onClick={handleSave}>{t("common.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

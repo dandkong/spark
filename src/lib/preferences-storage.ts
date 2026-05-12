@@ -1,4 +1,5 @@
 import { load, type Store } from "@tauri-apps/plugin-store";
+import { isLanguagePreference, type LanguagePreference } from "@/i18n";
 import type { ReasoningMode } from "@/types";
 
 const STORE_PATH = "preferences.json";
@@ -11,6 +12,7 @@ export type UserPreferences = {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
   contextMessageLimit: number | null;
+  language: LanguagePreference;
 };
 
 let storePromise: Promise<Store> | null = null;
@@ -55,6 +57,9 @@ export async function loadPreferences(
         ? clamp(sidebarWidth, 220, 420)
         : fallback.sidebarWidth,
       contextMessageLimit,
+      language: isLanguagePreference(stored.language)
+        ? stored.language
+        : fallback.language,
     };
   } catch {
     return fallback;

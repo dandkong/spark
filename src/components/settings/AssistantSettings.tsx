@@ -2,6 +2,7 @@ import type { AssistantConfig } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Edit3Icon, GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
+import { useI18n } from "@/i18n";
 import { SettingsContent, SettingsHeader } from "./shared";
 
 export default function AssistantSettings({
@@ -17,14 +18,16 @@ export default function AssistantSettings({
   onDelete: (assistantId: string) => void;
   onReorder: (assistants: AssistantConfig[]) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <SettingsContent>
       <SettingsHeader
-        title="助手"
+        title={t("settings.assistants.title")}
         action={
-          <Button variant="outline" onClick={onCreate} title="新建助手">
+          <Button variant="outline" onClick={onCreate}>
             <PlusIcon className="size-4" />
-            新建
+            {t("settings.assistants.new")}
           </Button>
         }
       />
@@ -73,8 +76,6 @@ function AssistantItem({
         type="button"
         onPointerDown={(event) => dragControls.start(event)}
         className="flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted active:cursor-grabbing"
-        title="拖动排序"
-        aria-label={`拖动 ${assistant.name} 排序`}
       >
         <GripVerticalIcon className="size-4" />
       </button>
@@ -93,7 +94,6 @@ function AssistantItem({
         variant="ghost"
         size="icon-sm"
         onClick={() => onEdit(assistant)}
-        title="编辑"
       >
         <Edit3Icon className="size-4" />
       </Button>
@@ -102,7 +102,6 @@ function AssistantItem({
         size="icon-sm"
         onClick={() => onDelete(assistant.id)}
         disabled={assistantCount <= 1}
-        title="删除"
       >
         <Trash2Icon className="size-4" />
       </Button>

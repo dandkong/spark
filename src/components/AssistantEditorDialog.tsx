@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useI18n } from "@/i18n";
 
 type AssistantEditorDialogProps = {
   assistant: AssistantConfig | null;
@@ -19,9 +20,9 @@ type AssistantEditorDialogProps = {
   onSave: (assistant: AssistantConfig) => void;
 };
 
-const emptyAssistant = (): AssistantConfig => ({
+const emptyAssistant = (name: string): AssistantConfig => ({
   id: crypto.randomUUID(),
-  name: "新助手",
+  name,
   emoji: "✨",
   modelId: undefined,
   systemPrompt: "",
@@ -33,18 +34,21 @@ export default function AssistantEditorDialog({
   onOpenChange,
   onSave,
 }: Omit<AssistantEditorDialogProps, "mode">) {
-  const [draft, setDraft] = useState<AssistantConfig>(emptyAssistant);
+  const { t } = useI18n();
+  const [draft, setDraft] = useState<AssistantConfig>(() =>
+    emptyAssistant(t("assistant.defaultName")),
+  );
 
   useEffect(() => {
     if (!open) return;
-    setDraft(assistant ?? emptyAssistant());
-  }, [assistant, open]);
+    setDraft(assistant ?? emptyAssistant(t("assistant.defaultName")));
+  }, [assistant, open, t]);
 
   const handleSave = () => {
     onSave({
       ...draft,
       emoji: draft.emoji?.trim() || "✨",
-      name: draft.name.trim() || "未命名助手",
+      name: draft.name.trim() || t("assistant.untitled"),
       systemPrompt: draft.systemPrompt.trim(),
     });
     onOpenChange(false);
@@ -54,13 +58,13 @@ export default function AssistantEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>编辑助手</DialogTitle>
+          <DialogTitle>{t("assistantDialog.title")}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4">
           <div className="grid grid-cols-[4rem_1fr] gap-3">
             <label className="grid gap-2">
-              <span className="text-sm font-medium">图标</span>
+              <span className="text-sm font-medium">{t("assistantDialog.icon")}</span>
               <Input
                 value={draft.emoji ?? ""}
                 onChange={(event) =>
@@ -75,7 +79,7 @@ export default function AssistantEditorDialog({
             </label>
 
             <label className="grid gap-2">
-              <span className="text-sm font-medium">名称</span>
+              <span className="text-sm font-medium">{t("common.name")}</span>
               <Input
                 value={draft.name}
                 onChange={(event) =>
@@ -89,7 +93,7 @@ export default function AssistantEditorDialog({
           </div>
 
           <label className="grid gap-2">
-            <span className="text-sm font-medium">系统提示词</span>
+            <span className="text-sm font-medium">{t("assistantDialog.systemPrompt")}</span>
             <Textarea
               value={draft.systemPrompt}
               onChange={(event) =>
@@ -105,9 +109,9 @@ export default function AssistantEditorDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t("common.cancel")}
           </Button>
-          <Button onClick={handleSave}>保存</Button>
+          <Button onClick={handleSave}>{t("common.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -2,15 +2,18 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 import { getVersion } from "@tauri-apps/api/app";
+import { useI18n } from "@/i18n";
 import { SettingsContent, SettingsHeader } from "./shared";
 
 const isTauri = "__TAURI_INTERNALS__" in window;
 const GITHUB_URL = "https://github.com/dandkong/spark";
 
 export default function AboutSettings() {
+  const { t } = useI18n();
+
   return (
     <SettingsContent>
-      <SettingsHeader title="关于" />
+      <SettingsHeader title={t("settings.about.title")} />
 
       <div className="grid gap-6 rounded-lg border p-6">
         <div className="grid place-items-center gap-2 text-center">
@@ -20,7 +23,7 @@ export default function AboutSettings() {
         </div>
 
         <p className="text-center text-sm text-muted-foreground">
-          快速、简洁、优雅的本地AI助手
+          {t("settings.about.tagline")}
         </p>
 
         <div className="flex justify-center">

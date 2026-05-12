@@ -34,6 +34,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n";
 import { SettingsContent, SettingsHeader } from "./shared";
 
 export default function ProviderSettings({
@@ -57,6 +58,7 @@ export default function ProviderSettings({
   onFetchModels: () => Promise<ModelConfig[]>;
   onDeleteProvider: () => void;
 }) {
+  const { t } = useI18n();
   const { models } = provider;
   const [fetching, setFetching] = useState(false);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
@@ -71,12 +73,12 @@ export default function ProviderSettings({
         setModelSelectorOpen(true);
       })
       .catch((error) => {
-        toast.error("获取模型失败", {
-          description: error instanceof Error ? error.message : "请稍后重试。",
+        toast.error(t("settings.providers.fetchFailed"), {
+          description: error instanceof Error ? error.message : t("settings.providers.retryLater"),
         });
       })
       .finally(() => setFetching(false));
-  }, [onFetchModels]);
+  }, [onFetchModels, t]);
 
   return (
     <SettingsContent>
@@ -90,9 +92,9 @@ export default function ProviderSettings({
         }
         action={
           !provider.builtin && (
-            <Button variant="outline" onClick={onDeleteProvider} title="删除供应商">
+            <Button variant="outline" onClick={onDeleteProvider}>
               <Trash2Icon className="size-4" />
-              删除供应商
+              {t("settings.providers.delete")}
             </Button>
           )
         }
@@ -100,7 +102,7 @@ export default function ProviderSettings({
 
       <div className="grid gap-3 rounded-lg border p-3">
         <label className="grid gap-2">
-          <span className="text-sm font-medium">名称</span>
+          <span className="text-sm font-medium">{t("common.name")}</span>
           <Input
             value={provider.name}
             onChange={(event) =>
@@ -109,7 +111,9 @@ export default function ProviderSettings({
           />
         </label>
         <label className="grid gap-2">
-          <span className="text-sm font-medium">Base URL（可选）</span>
+          <span className="text-sm font-medium">
+            {t("settings.providers.baseUrl", { optional: t("common.optional") })}
+          </span>
           <Input
             placeholder="https://api.example.com/v1"
             value={provider.baseURL ?? ""}
@@ -132,7 +136,6 @@ export default function ProviderSettings({
               <InputGroupButton
                 size="icon-xs"
                 onClick={() => setShowApiKey((visible) => !visible)}
-                title={showApiKey ? "隐藏 API Key" : "显示 API Key"}
               >
                 {showApiKey ? (
                   <EyeOffIcon className="size-4" />
@@ -146,26 +149,25 @@ export default function ProviderSettings({
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-medium">模型</h2>
+        <h2 className="text-base font-medium">{t("settings.providers.models")}</h2>
         <div className="flex gap-2">
           {provider.builtin && (
             <Button
               variant="outline"
               onClick={handleFetch}
               disabled={fetching}
-              title="从 models.dev 获取模型列表"
             >
               {fetching ? (
                 <LoaderIcon className="size-4 animate-spin" />
               ) : (
                 <CloudDownloadIcon className="size-4" />
               )}
-              获取模型
+              {t("settings.providers.fetchModels")}
             </Button>
           )}
-          <Button variant="outline" onClick={onCreate} title="新建模型">
+          <Button variant="outline" onClick={onCreate}>
             <PlusIcon className="size-4" />
-            新建
+            {t("settings.providers.newModel")}
           </Button>
         </div>
       </div>
@@ -174,10 +176,10 @@ export default function ProviderSettings({
         open={modelSelectorOpen}
         onOpenChange={setModelSelectorOpen}
       >
-        <ModelSelectorContent title="选择模型">
-          <ModelSelectorInput placeholder="搜索模型..." />
+        <ModelSelectorContent title={t("settings.providers.selectModel")}>
+          <ModelSelectorInput placeholder={t("common.searchModels")} />
           <ModelSelectorList>
-            <ModelSelectorEmpty>未找到模型。</ModelSelectorEmpty>
+            <ModelSelectorEmpty>{t("common.modelNotFound")}</ModelSelectorEmpty>
             <ModelSelectorGroup heading={getProviderDisplayName(provider)}>
               {availableModels.map((model) => {
                 const exists = models.some((item) => item.id === model.id);
@@ -225,7 +227,6 @@ export default function ProviderSettings({
               variant="ghost"
               size="icon-sm"
               onClick={() => onEdit(model)}
-              title="编辑"
             >
               <Edit3Icon className="size-4" />
             </Button>
@@ -233,7 +234,6 @@ export default function ProviderSettings({
               variant="ghost"
               size="icon-sm"
               onClick={() => onDelete(model.id)}
-              title="删除"
             >
               <Trash2Icon className="size-4" />
             </Button>

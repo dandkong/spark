@@ -56,7 +56,6 @@ export function MessageToolbar({
         variant="ghost"
         size="icon-sm"
         onClick={onCopy}
-        title={copied ? "已复制" : "复制"}
       >
         {copied ? (
           <ClipboardCheckIcon className="size-3.5" />
@@ -70,7 +69,6 @@ export function MessageToolbar({
           size="icon-sm"
           onClick={onEdit}
           disabled={disabled}
-          title="编辑"
         >
           <PencilIcon className="size-3.5" />
         </Button>
@@ -83,7 +81,6 @@ export function MessageToolbar({
                 variant="ghost"
                 size="icon-sm"
                 disabled={disabled}
-                title="让其他模型回答"
               />
             }
           >
@@ -112,7 +109,7 @@ export function MessageToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      <Button variant="ghost" size="icon-sm" onClick={onDelete} title="删除">
+      <Button variant="ghost" size="icon-sm" onClick={onDelete}>
         <Trash2Icon className="size-3.5" />
       </Button>
       {canRegenerate && (
@@ -121,7 +118,6 @@ export function MessageToolbar({
           size="icon-sm"
           onClick={onRegenerate}
           disabled={disabled}
-          title="重新生成"
         >
           <RefreshCwIcon className="size-3.5" />
         </Button>

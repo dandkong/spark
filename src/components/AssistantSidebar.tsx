@@ -75,7 +75,6 @@ export default function AssistantSidebar({
             variant="ghost"
             size="icon-sm"
             onClick={onToggleCollapsed}
-            title="展开侧边栏"
           >
             <PanelLeftOpenIcon className="size-4" />
           </Button>
@@ -92,7 +91,6 @@ export default function AssistantSidebar({
                 variant="ghost"
                 size="icon-sm"
                 onClick={onCreateAssistant}
-                title="新建助手"
               >
                 <PlusIcon className="size-4" />
               </Button>
@@ -100,7 +98,6 @@ export default function AssistantSidebar({
                 variant="ghost"
                 size="icon-sm"
                 onClick={onToggleCollapsed}
-                title="收起侧边栏"
               >
                 <PanelLeftCloseIcon className="size-4" />
               </Button>
@@ -117,7 +114,6 @@ export default function AssistantSidebar({
                 key={assistant.id}
                 type="button"
                 onClick={() => onSelectAssistant(assistant.id)}
-                title={assistant.name}
                 className={cn(
                   "flex size-8 items-center justify-center rounded-lg text-sm transition-colors hover:bg-muted",
                   activeAssistantId === assistant.id && "bg-muted",
@@ -164,7 +160,6 @@ export default function AssistantSidebar({
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-label="调整侧边栏宽度"
           className={cn(
             "absolute top-0 right-[-3px] z-10 h-full w-1.5 cursor-col-resize touch-none",
             "after:absolute after:top-0 after:left-1/2 after:h-full after:w-px after:-translate-x-1/2 after:bg-border after:opacity-0 after:transition-opacity hover:after:opacity-100",

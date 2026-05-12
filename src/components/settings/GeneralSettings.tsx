@@ -1,16 +1,19 @@
 import type { UserPreferences } from "@/lib/preferences-storage";
+import type { LanguagePreference } from "@/i18n";
+import { useI18n } from "@/i18n";
 import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SettingsContent, SettingsHeader } from "./shared";
 
 const contextLimitMax = 100;
 const contextLimitUnlimitedValue = contextLimitMax;
-const contextLimitMarks = [
-  { label: "0", value: 0 },
-  { label: "25", value: 25 },
-  { label: "50", value: 50 },
-  { label: "75", value: 75 },
-  { label: "不限", value: contextLimitUnlimitedValue },
-] as const;
+const languageOptions: LanguagePreference[] = ["system", "en-US", "zh-CN"];
 
 export default function GeneralSettings({
   settings,
@@ -19,23 +22,66 @@ export default function GeneralSettings({
   settings: UserPreferences;
   onChange: (settings: UserPreferences) => void;
 }) {
+  const { t } = useI18n();
+  const contextLimitMarks = [
+    { label: "0", value: 0 },
+    { label: "25", value: 25 },
+    { label: "50", value: 50 },
+    { label: "75", value: 75 },
+    { label: t("settings.general.unlimited"), value: contextLimitUnlimitedValue },
+  ] as const;
   const contextLimitValue =
     settings.contextMessageLimit === null
       ? contextLimitUnlimitedValue
       : settings.contextMessageLimit;
   const contextLimitLabel =
-    settings.contextMessageLimit === null ? "不限" : String(contextLimitValue);
+    settings.contextMessageLimit === null
+      ? t("settings.general.unlimited")
+      : String(contextLimitValue);
 
   return (
     <SettingsContent>
-      <SettingsHeader title="通用" />
+      <SettingsHeader title={t("settings.general.title")} />
 
       <div className="grid gap-3">
         <section className="grid gap-3 rounded-lg border p-3">
-          <div className="text-sm font-medium">显示</div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">
+              {t("settings.general.language")}
+            </span>
+            <Select
+              value={settings.language}
+              onValueChange={(language) =>
+                onChange({ ...settings, language: language as LanguagePreference })
+              }
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue>
+                  {(language) =>
+                    language
+                      ? t(`language.${language as LanguagePreference}`)
+                      : ""
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {languageOptions.map((language) => (
+                  <SelectItem key={language} value={language}>
+                    {t(`language.${language}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </section>
+
+        <section className="grid gap-3 rounded-lg border p-3">
+          <div className="text-sm font-medium">{t("settings.general.display")}</div>
           <div className="grid gap-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-muted-foreground">聊天字号</span>
+              <span className="text-sm text-muted-foreground">
+                {t("settings.general.chatFontSize")}
+              </span>
               <span className="text-sm text-muted-foreground">
                 {settings.chatMessageFontSize}px
               </span>
@@ -53,11 +99,13 @@ export default function GeneralSettings({
         </section>
 
         <section className="grid gap-3 rounded-lg border p-3">
-          <div className="text-sm font-medium">对话</div>
+          <div className="text-sm font-medium">
+            {t("settings.general.conversation")}
+          </div>
           <div className="grid gap-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm text-muted-foreground">
-                上下文消息数
+                {t("settings.general.contextMessages")}
               </span>
               <span className="text-sm text-muted-foreground">
                 {contextLimitLabel}

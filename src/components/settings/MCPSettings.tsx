@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { MCPServerConfig, MCPTransportType } from "@/types";
 import { Edit3Icon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n";
 import { SettingsContent, SettingsHeader } from "./shared";
 
 type MCPDialogState =
@@ -49,6 +50,7 @@ export default function MCPSettings({
   servers: MCPServerConfig[];
   onChange: (servers: MCPServerConfig[]) => void;
 }) {
+  const { t } = useI18n();
   const [dialog, setDialog] = useState<MCPDialogState>({
     open: false,
     server: null,
@@ -86,9 +88,9 @@ export default function MCPSettings({
       <SettingsHeader
         title="MCP"
         action={
-          <Button variant="outline" onClick={openCreate} title="新建 MCP">
+          <Button variant="outline" onClick={openCreate}>
             <PlusIcon className="size-4" />
-            新建
+            {t("settings.mcp.new")}
           </Button>
         }
       />
@@ -119,7 +121,6 @@ export default function MCPSettings({
               variant="ghost"
               size="icon-sm"
               onClick={() => openEdit(server)}
-              title="编辑"
             >
               <Edit3Icon className="size-4" />
             </Button>
@@ -127,7 +128,6 @@ export default function MCPSettings({
               variant="ghost"
               size="icon-sm"
               onClick={() => handleDelete(server.id)}
-              title="删除"
             >
               <Trash2Icon className="size-4" />
             </Button>
@@ -136,7 +136,7 @@ export default function MCPSettings({
 
         {servers.length === 0 && (
           <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            还没有 MCP 服务。
+            {t("settings.mcp.empty")}
           </div>
         )}
       </div>
@@ -164,6 +164,7 @@ function MCPServerDialog({
   onOpenChange: (open: boolean) => void;
   onSave: (server: MCPServerConfig) => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState<MCPFormState>(emptyForm);
 
   useEffect(() => {
@@ -186,13 +187,13 @@ function MCPServerDialog({
     const name = form.name.trim();
     const url = form.url.trim();
     if (!name || !url) {
-      toast.error("请填写 MCP 名称和 URL");
+      toast.error(t("settings.mcp.fillNameUrl"));
       return;
     }
 
-    const headers = parseHeaders(form.headersText);
+    const headers = parseHeaders(form.headersText, t);
     if (!headers.ok) {
-      toast.error("Headers 格式错误", { description: headers.error });
+      toast.error(t("settings.mcp.headersInvalid"), { description: headers.error });
       return;
     }
 
@@ -210,12 +211,12 @@ function MCPServerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>编辑</DialogTitle>
+          <DialogTitle>{t("common.edit")}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-3">
           <div className="flex items-center justify-between rounded-lg border p-3">
-            <div className="text-sm font-medium">启用</div>
+            <div className="text-sm font-medium">{t("common.enabled")}</div>
             <Switch
               checked={form.enabled}
               onCheckedChange={(enabled) =>
@@ -226,7 +227,7 @@ function MCPServerDialog({
 
           <div className="grid gap-3 md:grid-cols-[1fr_160px]">
             <label className="grid gap-2">
-              <span className="text-sm font-medium">名称</span>
+              <span className="text-sm font-medium">{t("common.name")}</span>
               <Input
                 placeholder="Exa"
                 value={form.name}
@@ -239,7 +240,7 @@ function MCPServerDialog({
               />
             </label>
             <label className="grid gap-2">
-              <span className="text-sm font-medium">类型</span>
+              <span className="text-sm font-medium">{t("common.type")}</span>
               <Select
                 value={form.transportType}
                 onValueChange={(value) =>
@@ -289,16 +290,19 @@ function MCPServerDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t("common.cancel")}
           </Button>
-          <Button onClick={handleSave}>保存</Button>
+          <Button onClick={handleSave}>{t("common.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function parseHeaders(text: string):
+function parseHeaders(
+  text: string,
+  t: ReturnType<typeof useI18n>["t"],
+):
   | { ok: true; value: Record<string, string> }
   | { ok: false; error: string } {
   const trimmed = text.trim();
@@ -307,7 +311,7 @@ function parseHeaders(text: string):
   try {
     const value = JSON.parse(trimmed) as unknown;
     if (!value || typeof value !== "object" || Array.isArray(value)) {
-      return { ok: false, error: "Headers 必须是 JSON object。" };
+      return { ok: false, error: t("settings.mcp.headersObject") };
     }
 
     const entries = Object.entries(value);
@@ -316,7 +320,7 @@ function parseHeaders(text: string):
         ([key, headerValue]) => !key || typeof headerValue !== "string",
       )
     ) {
-      return { ok: false, error: "Header 名称不能为空，值必须是字符串。" };
+      return { ok: false, error: t("settings.mcp.headerInvalid") };
     }
 
     return {
@@ -326,7 +330,7 @@ function parseHeaders(text: string):
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : "无法解析 JSON。",
+      error: error instanceof Error ? error.message : t("settings.mcp.jsonParseFailed"),
     };
   }
 }

@@ -1,4 +1,5 @@
 import type { InferUITools, UIMessage } from "ai";
+import type { LanguagePreference } from "@/i18n";
 
 export type AppChatMessageMetadata = {
   generatedBy?: "primary" | "mention";
@@ -19,6 +20,7 @@ export type UserPreferences = {
   activeAssistantId: string;
   chatMessageFontSize: number;
   reasoningMode: ReasoningMode;
+  language: LanguagePreference;
 };
 
 export type AssistantConfig = {

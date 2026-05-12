@@ -1,43 +1,44 @@
 # ⚡ Spark
 
-快速、简洁、优雅的本地AI助手。
+English | [简体中文](README.zh-CN.md)
+
+A fast, simple, and elegant local AI assistant.
 
 ![Spark](public/images/hero.png)
 
-基于 Tauri 2 构建，轻量桌面应用，支持多种 AI 模型供应商。
+Built with Tauri 2, Spark is a lightweight desktop app that supports multiple AI model providers.
 
-## 功能
+## Features
 
-- **多模型支持** — OpenAI、Anthropic、Google、DeepSeek、Moonshot、Qwen，以及任意 OpenAI 兼容 API
-- **多助手管理** — 创建多个助手，各自独立的系统提示词和对话记录
-- **推理模式** — 支持自动/开启/关闭思考模式，适配不同推理模型
-- **MCP 工具扩展** — 支持配置 MCP 服务，让助手调用外部工具
+- **Multi-model support** — OpenAI, Anthropic, Google, DeepSeek, Moonshot, Qwen, and any OpenAI-compatible API
+- **Multiple assistants** — Create separate assistants with independent system prompts and chat histories
+- **Reasoning mode** — Supports auto/on/off thinking modes for different reasoning models
+- **MCP tool extensions** — Configure MCP servers so assistants can call external tools
 
-## 技术栈
+## Tech Stack
 
-| 层 | 技术 |
-|---|------|
-| 桌面框架 | Tauri 2 |
-| 前端 | React 19 + TypeScript |
-| UI 组件 | shadcn/ui + AI Elements |
-| 样式 | Tailwind CSS 4 |
-| 动画 | Motion |
-| 路由 | React Router |
-| AI 接口 | AI SDK |
-| 构建工具 | Bun + Vite 8 |
+- Desktop framework: Tauri 2
+- Frontend: React 19 + TypeScript
+- UI components: shadcn/ui + AI Elements
+- Styling: Tailwind CSS 4
+- Animation: Motion
+- Routing: React Router
+- AI integration: AI SDK
+- Build tools: Bun + Vite 8
 
-## 开发
+## Development
 
 ```bash
-# 安装依赖
+# Install dependencies
 bun install
 
-# 启动开发模式
+# Start development mode
 bun run tauri dev
 
-# 构建发布
+# Build for release
 bun run tauri build
 ```
-## 许可
+
+## License
 
 MIT

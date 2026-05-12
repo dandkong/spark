@@ -37,6 +37,7 @@ import type {
 } from "@/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom";
+import { I18nProvider, resolveLocale, translateForLocale } from "@/i18n";
 
 const initialModelProviders: ModelProviderConfig[] = BUILTIN_MODEL_PROVIDERS;
 
@@ -49,7 +50,10 @@ const initialAssistants: AssistantConfig[] = [
     emoji: "⚡",
     providerId: defaultProvider.id,
     modelId: "",
-    systemPrompt: "你是Spark，一个有用的个人助手。",
+    systemPrompt: translateForLocale(
+      resolveLocale("system"),
+      "assistant.defaultSystemPrompt",
+    ),
   },
 ];
 
@@ -60,6 +64,7 @@ const defaultPreferences: UserPreferences = {
   sidebarCollapsed: false,
   sidebarWidth: 256,
   contextMessageLimit: null,
+  language: "system",
 };
 
 const defaultSettings = {
@@ -320,8 +325,8 @@ function App() {
     );
   };
 
-  const handleCreateProvider = () => {
-    const provider = createOpenAICompatibleProvider();
+  const handleCreateProvider = (name?: string) => {
+    const provider = createOpenAICompatibleProvider(name);
     setModelProviders((current) => [...current, provider]);
     return provider.id;
   };
@@ -377,6 +382,7 @@ function App() {
   };
 
   return (
+    <I18nProvider languagePreference={preferences.language}>
     <TooltipProvider>
       <div className="flex h-full">
         <AssistantSidebar
@@ -521,6 +527,7 @@ function App() {
       />
       <Toaster position="top-center" />
     </TooltipProvider>
+    </I18nProvider>
   );
 }
 

@@ -60,12 +60,12 @@ async function getModelsDevData() {
   });
 
   if (!response.ok) {
-    throw new Error(`models.dev 请求失败：${response.status}`);
+    throw new Error(`models.dev request failed: ${response.status}`);
   }
 
   const data = await response.json();
   if (!data || typeof data !== "object") {
-    throw new Error("models.dev 返回了无效数据");
+    throw new Error("models.dev returned invalid data");
   }
 
   modelsDevCache = data as ModelsDevData;

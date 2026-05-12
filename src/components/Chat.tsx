@@ -114,12 +114,7 @@ import {
   getProviderLogo,
 } from "@/lib/model-providers";
 import { getEnabledMCPTools } from "@/lib/mcp";
-
-const reasoningModeLabels: Record<ReasoningMode, string> = {
-  auto: "自动",
-  off: "关闭",
-  on: "开启",
-};
+import { useI18n } from "@/i18n";
 
 function buildAssistantInstructions(systemPrompt: string) {
   const now = new Date();
@@ -215,6 +210,15 @@ export default function Chat({
   onMessagesChange,
   onModelChange,
 }: ChatProps) {
+  const { t } = useI18n();
+  const reasoningModeLabels = useMemo<Record<ReasoningMode, string>>(
+    () => ({
+      auto: t("chat.reasoning.auto"),
+      off: t("chat.reasoning.off"),
+      on: t("chat.reasoning.on"),
+    }),
+    [t],
+  );
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [editingMessage, setEditingMessage] = useState<{
     id: string;
@@ -302,11 +306,11 @@ export default function Chat({
   useEffect(() => {
     if (!error) return;
 
-    toast.error("请求失败", {
-      description: getChatErrorMessage(error),
+    toast.error(t("chat.error.requestFailed"), {
+      description: getChatErrorMessage(error, t),
     });
     clearError();
-  }, [clearError, error]);
+  }, [clearError, error, t]);
 
   const selectedModelData = useMemo(
     () => models.find((m) => m.id === model),
@@ -344,9 +348,9 @@ export default function Chat({
         );
       }, 1000);
     } catch {
-      toast.error("复制失败");
+      toast.error(t("chat.error.copyFailed"));
     }
-  }, []);
+  }, [t]);
 
   const handleDeleteMessage = useCallback(
     (messageId: string) => {
@@ -369,7 +373,7 @@ export default function Chat({
 
     const editedText = editingMessage.text.trim();
     if (!editedText) {
-      toast.error("消息不能为空");
+      toast.error(t("chat.error.emptyMessage"));
       return;
     }
 
@@ -398,7 +402,7 @@ export default function Chat({
     if (shouldRegenerate) {
       regenerate({ messageId: editingMessage.id });
     }
-  }, [editingMessage, regenerate, setMessages]);
+  }, [editingMessage, regenerate, setMessages, t]);
 
   const handleRegenerate = useCallback(
     (messageId: string) => {
@@ -414,8 +418,8 @@ export default function Chat({
           : findPreviousUserMessageIndex(messages, messageIndex);
 
       if (targetUserIndex === -1) {
-        toast.error("无法重新生成", {
-          description: "没有找到可用于重新生成的用户消息。",
+        toast.error(t("chat.error.regenerateFailed"), {
+          description: t("chat.error.noUserMessageForRegenerate"),
         });
         return;
       }
@@ -424,7 +428,7 @@ export default function Chat({
       setMessages(messages.slice(0, targetUserIndex + 1));
       regenerate({ messageId: targetMessage.id });
     },
-    [messages, regenerate, setMessages],
+    [messages, regenerate, setMessages, t],
   );
 
   const handleMentionReply = useCallback(
@@ -445,8 +449,8 @@ export default function Chat({
         targetIndex,
       );
       if (sourceUserIndex === -1) {
-        toast.error("无法 @ 模型", {
-          description: "没有找到这条回答对应的用户消息。",
+        toast.error(t("chat.error.mentionFailed"), {
+          description: t("chat.error.noUserMessageForMention"),
         });
         return;
       }
@@ -517,8 +521,8 @@ export default function Chat({
           );
         }
       } catch (error) {
-        toast.error("@ 模型失败", {
-          description: getChatErrorMessage(error),
+        toast.error(t("chat.error.mentionFailed"), {
+          description: getChatErrorMessage(error, t),
         });
         setMessages((current) =>
           current.filter((message) => message.id !== mentionMessage.id),
@@ -534,6 +538,7 @@ export default function Chat({
       messages,
       reasoningMode,
       setMessages,
+      t,
     ],
   );
 
@@ -556,7 +561,7 @@ export default function Chat({
       const hasFiles = message.files.length > 0;
       if (!text && !hasFiles) return;
       if (!hasConfiguredModel) {
-        toast.error("请在设置中配置模型");
+        toast.error(t("chat.error.configureModel"));
         return;
       }
       sendMessage({
@@ -565,7 +570,7 @@ export default function Chat({
       });
       setInput("");
     },
-    [hasConfiguredModel, sendMessage],
+    [hasConfiguredModel, sendMessage, t],
   );
 
   return (
@@ -627,7 +632,6 @@ export default function Chat({
                       {turn.replies.length > 1 && (
                         <ReplyTabs
                           activeReplyId={activeReply.id}
-                          fallbackPrimaryLabel={selectedModelData?.name ?? model}
                           fallbackPrimaryProvider={provider}
                           providers={providers}
                           replies={turn.replies}
@@ -705,7 +709,7 @@ export default function Chat({
               <PromptInputTextarea
                 onChange={(e) => setInput(e.target.value)}
                 value={input}
-                placeholder="输入消息..."
+                placeholder={t("chat.input.placeholder")}
               />
             </PromptInputBody>
             <PromptInputFooter>
@@ -721,7 +725,7 @@ export default function Chat({
                         type="button"
                         variant="outline"
                         size="sm"
-                        title="选择模型"
+
                       />
                     }
                   >
@@ -729,13 +733,13 @@ export default function Chat({
                       <ModelSelectorLogo provider={getProviderLogo(provider)} className="size-4" />
                     )}
                     <ModelSelectorName>
-                      {selectedModelData?.name ?? "选择模型"}
+                      {selectedModelData?.name ?? t("common.selectModel")}
                     </ModelSelectorName>
                   </ModelSelectorTrigger>
                   <ModelSelectorContent>
-                    <ModelSelectorInput placeholder="搜索模型..." />
+                    <ModelSelectorInput placeholder={t("common.searchModels")} />
                     <ModelSelectorList>
-                      <ModelSelectorEmpty>未找到模型。</ModelSelectorEmpty>
+                      <ModelSelectorEmpty>{t("common.modelNotFound")}</ModelSelectorEmpty>
                       {providers.map((modelProvider) => (
                         <ModelSelectorGroup
                           key={modelProvider.id}
@@ -772,10 +776,10 @@ export default function Chat({
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      toast.error("请在设置中配置模型");
+                      toast.error(t("chat.error.configureModel"));
                     }}
                   >
-                    暂无模型
+                    {t("chat.input.noModels")}
                   </Button>
                 )}
                 <DropdownMenu>
@@ -785,7 +789,7 @@ export default function Chat({
                         type="button"
                         variant="outline"
                         size="sm"
-                        title={`思考模式:${reasoningModeLabels[reasoningMode]}`}
+
                       />
                     }
                   >
@@ -819,7 +823,7 @@ export default function Chat({
                   variant="outline"
                   size="sm"
                   onClick={handleClear}
-                  title="清理对话 (Ctrl+L)"
+
                 >
                   <EraserIcon className="size-4" />
                 </Button>
@@ -837,7 +841,7 @@ export default function Chat({
       >
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>编辑消息</DialogTitle>
+            <DialogTitle>{t("chat.editMessage.title")}</DialogTitle>
           </DialogHeader>
           <Textarea
             className="min-h-40 resize-none"
@@ -850,9 +854,9 @@ export default function Chat({
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingMessage(null)}>
-              取消
+              {t("common.cancel")}
             </Button>
-            <Button onClick={handleSaveEditedMessage}>保存</Button>
+            <Button onClick={handleSaveEditedMessage}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -924,7 +928,7 @@ function PromptInputAttachmentButton() {
       variant="outline"
       size="sm"
       onClick={attachments.openFileDialog}
-      title="添加附件"
+
     >
       <PaperclipIcon className="size-4" />
     </Button>
@@ -954,7 +958,7 @@ function PromptInputAttachmentsDisplay() {
             >
               <AttachmentPreview />
               <AttachmentInfo />
-              <AttachmentRemove label="移除附件" />
+              <AttachmentRemove />
             </AttachmentHoverCardTrigger>
             <AttachmentHoverCardContent>
               <div className="space-y-3">
@@ -1067,14 +1071,12 @@ function ToolCallView({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
 
 function ReplyTabs({
   activeReplyId,
-  fallbackPrimaryLabel,
   fallbackPrimaryProvider,
   providers,
   replies,
   onValueChange,
 }: {
   activeReplyId: string;
-  fallbackPrimaryLabel: string;
   fallbackPrimaryProvider?: ModelProviderConfig;
   providers: ModelProviderConfig[];
   replies: AppChatMessage[];
@@ -1089,12 +1091,8 @@ function ReplyTabs({
       }}
       className="ml-1"
     >
-      {replies.map((reply, index) => (
-        <ToggleGroupItem
-          key={reply.id}
-          value={reply.id}
-          title={getReplyLabel(reply, providers, index, fallbackPrimaryLabel)}
-        >
+      {replies.map((reply) => (
+        <ToggleGroupItem key={reply.id} value={reply.id}>
           <ReplyTabIcon
             fallbackPrimaryProvider={fallbackPrimaryProvider}
             reply={reply}
@@ -1141,7 +1139,12 @@ function MessageToolbar({
           : "flex justify-start gap-1 text-muted-foreground"
       }
     >
-      <Button variant="ghost" size="icon-sm" onClick={onCopy} title={copied ? "已复制" : "复制"}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={onCopy}
+
+      >
         {copied ? (
           <ClipboardCheckIcon className="size-3.5" />
         ) : (
@@ -1154,7 +1157,7 @@ function MessageToolbar({
           size="icon-sm"
           onClick={onEdit}
           disabled={disabled}
-          title="编辑"
+
         >
           <PencilIcon className="size-3.5" />
         </Button>
@@ -1167,7 +1170,7 @@ function MessageToolbar({
                 variant="ghost"
                 size="icon-sm"
                 disabled={disabled}
-                title="让其他模型回答"
+
               />
             }
           >
@@ -1198,7 +1201,7 @@ function MessageToolbar({
         size="icon-sm"
         onClick={onDelete}
         disabled={disabled}
-        title="删除"
+
       >
         <Trash2Icon className="size-3.5" />
       </Button>
@@ -1208,7 +1211,7 @@ function MessageToolbar({
           size="icon-sm"
           onClick={onRegenerate}
           disabled={disabled}
-          title="重新生成"
+
         >
           <RefreshCwIcon className="size-3.5" />
         </Button>
@@ -1314,26 +1317,6 @@ function ReplyTabIcon({
   );
 }
 
-function getReplyLabel(
-  reply: AppChatMessage,
-  providers: ModelProviderConfig[],
-  index: number,
-  fallbackPrimaryLabel: string,
-) {
-  const provider = providers.find(
-    (provider) => provider.id === reply.metadata?.providerId,
-  );
-  const model = provider?.models.find(
-    (model) => model.id === reply.metadata?.modelId,
-  );
-
-  if (reply.metadata?.generatedBy !== "mention" && !reply.metadata?.modelId) {
-    return fallbackPrimaryLabel;
-  }
-
-  return model?.name ?? reply.metadata?.modelId ?? `回答 ${index + 1}`;
-}
-
 function createMessageId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -1382,12 +1365,15 @@ function updateMessageText(message: AppChatMessage, text: string): AppChatMessag
   return { ...message, parts } as AppChatMessage;
 }
 
-function getChatErrorMessage(error: unknown) {
+function getChatErrorMessage(
+  error: unknown,
+  t: ReturnType<typeof useI18n>["t"],
+) {
   if (error instanceof Error && error.message) {
     return error.message;
   }
 
-  return "请检查 API Key、Base URL 和模型配置。";
+  return t("chat.error.checkModelConfig");
 }
 
 function AssistantLoadingMessage() {

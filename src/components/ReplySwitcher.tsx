@@ -5,7 +5,6 @@ import type { AppChatMessage, ModelProviderConfig } from "@/types";
 
 type ReplySwitcherProps = {
   activeReplyId: string;
-  fallbackPrimaryLabel: string;
   fallbackPrimaryProvider?: ModelProviderConfig;
   providers: ModelProviderConfig[];
   replies: AppChatMessage[];
@@ -14,7 +13,6 @@ type ReplySwitcherProps = {
 
 export function ReplySwitcher({
   activeReplyId,
-  fallbackPrimaryLabel,
   fallbackPrimaryProvider,
   providers,
   replies,
@@ -29,12 +27,8 @@ export function ReplySwitcher({
       }}
       className="ml-1"
     >
-      {replies.map((reply, index) => (
-        <ToggleGroupItem
-          key={reply.id}
-          value={reply.id}
-          title={getReplyLabel(reply, providers, index, fallbackPrimaryLabel)}
-        >
+      {replies.map((reply) => (
+        <ToggleGroupItem key={reply.id} value={reply.id}>
           <ReplyTabIcon
             fallbackPrimaryProvider={fallbackPrimaryProvider}
             reply={reply}
@@ -68,22 +62,3 @@ function ReplyTabIcon({
   );
 }
 
-function getReplyLabel(
-  reply: AppChatMessage,
-  providers: ModelProviderConfig[],
-  index: number,
-  fallbackPrimaryLabel: string,
-) {
-  const provider = providers.find(
-    (provider) => provider.id === reply.metadata?.providerId,
-  );
-  const model = provider?.models.find(
-    (model) => model.id === reply.metadata?.modelId,
-  );
-
-  if (reply.metadata?.generatedBy !== "mention" && !reply.metadata?.modelId) {
-    return fallbackPrimaryLabel;
-  }
-
-  return model?.name ?? reply.metadata?.modelId ?? `回答 ${index + 1}`;
-}

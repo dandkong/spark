@@ -97,7 +97,6 @@ export default function HeaderControls() {
         variant="ghost"
         size="icon"
         onClick={() => setTheme(nextTheme[theme])}
-        title="切换主题"
       >
         <ThemeIcon className="size-4" />
       </Button>
@@ -106,7 +105,6 @@ export default function HeaderControls() {
         size="icon"
         onClick={() => navigate(isSettings ? "/" : "/settings")}
         className={isSettings ? "bg-muted" : ""}
-        title="设置"
       >
         <SettingsIcon className="size-4" />
       </Button>

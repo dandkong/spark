@@ -95,10 +95,12 @@ export function getProviderLogo(provider: Pick<ModelProviderConfig, "id" | "type
   );
 }
 
-export function createOpenAICompatibleProvider(): ModelProviderConfig {
+export function createOpenAICompatibleProvider(
+  name = "Custom Provider",
+): ModelProviderConfig {
   return {
     id: crypto.randomUUID(),
-    name: "自定义供应商",
+    name,
     type: "openai-compatible",
     builtin: false,
     apiKey: "",

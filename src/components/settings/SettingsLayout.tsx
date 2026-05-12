@@ -10,6 +10,7 @@ import {
   getProviderLogo,
   getProviderNavName,
 } from "@/lib/model-providers";
+import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import {
   BotIcon,
@@ -21,7 +22,7 @@ import {
 
 type SettingsLayoutProps = {
   modelProviders: ModelProviderConfig[];
-  onCreateProvider: () => string;
+  onCreateProvider: (name?: string) => string;
 };
 
 export default function SettingsLayout({
@@ -30,6 +31,7 @@ export default function SettingsLayout({
 }: SettingsLayoutProps) {
   const navigate = useNavigate();
   const { section } = useParams();
+  const { t } = useI18n();
 
   return (
     <div className="flex size-full flex-col overflow-hidden">
@@ -45,7 +47,7 @@ export default function SettingsLayout({
               onClick={() => navigate("/settings/general")}
             >
               <SettingsIcon className="size-4" />
-              通用
+              {t("settings.general.title")}
             </Button>
             <Button
               variant="ghost"
@@ -56,7 +58,7 @@ export default function SettingsLayout({
               onClick={() => navigate("/settings/assistants")}
             >
               <BotIcon className="size-4" />
-              助手
+              {t("settings.assistants.title")}
             </Button>
 
             <Button
@@ -79,21 +81,20 @@ export default function SettingsLayout({
               onClick={() => navigate("/settings/about")}
             >
               <InfoIcon className="size-4" />
-              关于
+              {t("settings.about.title")}
             </Button>
 
             <div className="my-1" />
 
             <div className="flex items-center justify-between px-2 py-1 text-sm font-medium text-muted-foreground">
-              <span>供应商</span>
+              <span>{t("settings.providers.title")}</span>
               <Button
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => {
-                  const id = onCreateProvider();
+                  const id = onCreateProvider(t("settings.providers.custom"));
                   navigate(`/settings/${id}`);
                 }}
-                title="添加供应商"
               >
                 <PlusIcon className="size-3.5" />
               </Button>
