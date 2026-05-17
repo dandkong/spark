@@ -35,9 +35,10 @@ import type {
   ModelConfig,
   ModelProviderConfig,
 } from "@/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom";
 import { I18nProvider, resolveLocale, translateForLocale } from "@/i18n";
+import { restoreWindowState } from "@/lib/window-state";
 
 const initialModelProviders: ModelProviderConfig[] = BUILTIN_MODEL_PROVIDERS;
 
@@ -95,6 +96,7 @@ function App() {
     Record<string, AppChatMessage[]>
   >({});
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const windowShownRef = useRef(false);
   const [assistantDialog, setAssistantDialog] =
     useState<AssistantDialogState>({
       open: false,
@@ -176,6 +178,16 @@ function App() {
     savePreferences(preferences);
   }, [preferences, settingsLoaded]);
 
+  useEffect(() => {
+    if (!settingsLoaded || windowShownRef.current) return;
+    windowShownRef.current = true;
+
+    const frame = requestAnimationFrame(() => {
+      void restoreWindowState();
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [settingsLoaded]);
 
   useEffect(() => {
     if (
@@ -380,6 +392,8 @@ function App() {
     if (!isBuiltinProvider(providerId)) return [];
     return fetchProviderModels(providerId);
   };
+
+  if (!settingsLoaded) return null;
 
   return (
     <I18nProvider languagePreference={preferences.language}>

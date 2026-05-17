@@ -95,7 +95,7 @@ import {
   RefreshCwIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -298,6 +298,17 @@ export default function Chat({
     transport,
   });
   const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!isActive || editingMessage || modelSelectorOpen) return;
+
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [editingMessage, isActive, modelSelectorOpen]);
 
   useEffect(() => {
     onMessagesChange(assistant.id, messages);
@@ -333,6 +344,9 @@ export default function Chat({
     }
     setMessages([]);
     setInput("");
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
   }, [isActive, setMessages, status, stop]);
 
   const handleCopyMessage = useCallback(async (message: AppChatMessage) => {
@@ -707,6 +721,7 @@ export default function Chat({
             </PromptInputHeader>
             <PromptInputBody>
               <PromptInputTextarea
+                ref={inputRef}
                 onChange={(e) => setInput(e.target.value)}
                 value={input}
                 placeholder={t("chat.input.placeholder")}
