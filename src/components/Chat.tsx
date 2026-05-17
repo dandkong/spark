@@ -84,6 +84,7 @@ import {
   type ToolUIPart,
 } from "ai";
 import {
+  ArrowUpIcon,
   AtSignIcon,
   CheckIcon,
   ClipboardCheckIcon,
@@ -843,7 +844,13 @@ export default function Chat({
                   <EraserIcon className="size-4" />
                 </Button>
               </PromptInputTools>
-              <PromptInputSubmit status={status} onStop={stop} />
+              <PromptInputSubmit
+                className="rounded-full"
+                status={status}
+                onStop={stop}
+              >
+                {status === "ready" ? <ArrowUpIcon className="size-4" /> : undefined}
+              </PromptInputSubmit>
             </PromptInputFooter>
           </PromptInput>
         </div>
