@@ -87,7 +87,6 @@ import {
   ArrowUpIcon,
   AtSignIcon,
   CheckIcon,
-  ClipboardCheckIcon,
   BrainIcon,
   CopyIcon,
   EraserIcon,
@@ -96,8 +95,9 @@ import {
   RefreshCwIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useStickToBottomContext } from "use-stick-to-bottom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type {
@@ -299,7 +299,10 @@ export default function Chat({
     transport,
   });
   const [input, setInput] = useState("");
+  const [inputSentFeedback, setInputSentFeedback] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputFeedbackTimeoutRef = useRef<number | null>(null);
+  const scrollToBottomRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!isActive || editingMessage || modelSelectorOpen) return;
@@ -310,6 +313,15 @@ export default function Chat({
 
     return () => cancelAnimationFrame(frame);
   }, [editingMessage, isActive, modelSelectorOpen]);
+
+  useEffect(
+    () => () => {
+      if (inputFeedbackTimeoutRef.current) {
+        window.clearTimeout(inputFeedbackTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     onMessagesChange(assistant.id, messages);
@@ -361,7 +373,7 @@ export default function Chat({
         setCopiedMessageId((current) =>
           current === message.id ? null : current,
         );
-      }, 1000);
+      }, 2000);
     } catch {
       toast.error(t("chat.error.copyFailed"));
     }
@@ -557,35 +569,88 @@ export default function Chat({
     ],
   );
 
+  const handleFocusInput = useCallback(() => {
+    if (!isActive || editingMessage) return;
+
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, [editingMessage, isActive]);
+
   useEffect(() => {
     if (!isActive) return;
 
     const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "l") {
+      if (e.isComposing) return;
+
+      const key = e.key.toLowerCase();
+      const hasPrimaryModifier = e.ctrlKey || e.metaKey;
+      const hasAnyModifier = hasPrimaryModifier || e.altKey || e.shiftKey;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const isEditingText = isEditableTarget(target);
+
+      if (key === "/" && !hasAnyModifier && !isEditingText) {
+        e.preventDefault();
+        handleFocusInput();
+        return;
+      }
+
+      if (key === "escape" && !hasAnyModifier) {
+        if (status === "submitted" || status === "streaming") {
+          e.preventDefault();
+          stop();
+        }
+        return;
+      }
+
+      if (!hasPrimaryModifier || e.altKey || e.shiftKey) return;
+
+      if (key === "l") {
         e.preventDefault();
         handleClear();
       }
     };
+
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleClear, isActive]);
+  }, [handleClear, handleFocusInput, isActive, status, stop]);
 
   const handleSubmit = useCallback(
     (message: PromptInputMessage) => {
+      const isGenerating =
+        status === "submitted" ||
+        status === "streaming" ||
+        Boolean(mentionGeneratingMessageId);
+
+      if (isGenerating) {
+        return Promise.reject();
+      }
+
       const text = message.text.trim();
       const hasFiles = message.files.length > 0;
       if (!text && !hasFiles) return;
       if (!hasConfiguredModel) {
         toast.error(t("chat.error.configureModel"));
-        return;
+        return Promise.reject();
       }
       sendMessage({
         text,
         files: message.files,
       });
       setInput("");
+      setInputSentFeedback(true);
+      if (inputFeedbackTimeoutRef.current) {
+        window.clearTimeout(inputFeedbackTimeoutRef.current);
+      }
+      inputFeedbackTimeoutRef.current = window.setTimeout(() => {
+        setInputSentFeedback(false);
+        inputFeedbackTimeoutRef.current = null;
+      }, 180);
+      requestAnimationFrame(() => {
+        scrollToBottomRef.current?.();
+      });
     },
-    [hasConfiguredModel, sendMessage, t],
+    [hasConfiguredModel, mentionGeneratingMessageId, sendMessage, status, t],
   );
 
   return (
@@ -603,6 +668,12 @@ export default function Chat({
               turn.replies[0];
             const userIndex = messages.findIndex(
               (message) => message.id === turn.user.id,
+            );
+            const activeReplyIsGenerating = Boolean(
+              activeReply &&
+                ((activeReply.id === messages.at(-1)?.id &&
+                  status === "streaming") ||
+                  mentionGeneratingMessageId === activeReply.id),
             );
 
             return (
@@ -635,11 +706,7 @@ export default function Chat({
                 {activeReply && (
                   <Message from="assistant">
                     <MessageBody
-                      isStreaming={
-                        (activeReply.id === messages.at(-1)?.id &&
-                          status === "streaming") ||
-                        mentionGeneratingMessageId === activeReply.id
-                      }
+                      isStreaming={activeReplyIsGenerating}
                       message={activeReply}
                       messageFontSize={messageFontSize}
                     />
@@ -658,35 +725,47 @@ export default function Chat({
                           }
                         />
                       )}
-                      <MessageToolbar
-                        align="start"
-                        canMention={providers.some((item) => item.models.length > 0)}
-                        canRegenerate={canRegenerateFromMessage(
-                          messages,
-                          messages.findIndex(
-                            (message) => message.id === activeReply.id,
-                          ),
+                      <AnimatePresence initial={false}>
+                        {!activeReplyIsGenerating && (
+                          <motion.div
+                            key={`${activeReply.id}:toolbar`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3, delay: 0.35, ease: "easeOut" }}
+                          >
+                            <MessageToolbar
+                              align="start"
+                              canMention={providers.some((item) => item.models.length > 0)}
+                              canRegenerate={canRegenerateFromMessage(
+                                messages,
+                                messages.findIndex(
+                                  (message) => message.id === activeReply.id,
+                                ),
+                              )}
+                              disabled={
+                                status === "submitted" ||
+                                status === "streaming" ||
+                                Boolean(mentionGeneratingMessageId)
+                              }
+                              canEdit={false}
+                              copied={copiedMessageId === activeReply.id}
+                              providers={providers}
+                              onCopy={() => handleCopyMessage(activeReply)}
+                              onDelete={() => handleDeleteMessage(activeReply.id)}
+                              onEdit={() => undefined}
+                              onMention={(mentionProvider, mentionModelId) =>
+                                handleMentionReply(
+                                  activeReply.id,
+                                  mentionProvider,
+                                  mentionModelId,
+                                )
+                              }
+                              onRegenerate={() => handleRegenerate(activeReply.id)}
+                            />
+                          </motion.div>
                         )}
-                        disabled={
-                          status === "submitted" ||
-                          status === "streaming" ||
-                          Boolean(mentionGeneratingMessageId)
-                        }
-                        canEdit={false}
-                        copied={copiedMessageId === activeReply.id}
-                        providers={providers}
-                        onCopy={() => handleCopyMessage(activeReply)}
-                        onDelete={() => handleDeleteMessage(activeReply.id)}
-                        onEdit={() => undefined}
-                        onMention={(mentionProvider, mentionModelId) =>
-                          handleMentionReply(
-                            activeReply.id,
-                            mentionProvider,
-                            mentionModelId,
-                          )
-                        }
-                        onRegenerate={() => handleRegenerate(activeReply.id)}
-                      />
+                      </AnimatePresence>
                     </div>
                   </Message>
                 )}
@@ -695,6 +774,7 @@ export default function Chat({
           })}
           {isWaitingForAssistant && <AssistantLoadingMessage />}
         </ConversationContent>
+        <ConversationScrollController scrollToBottomRef={scrollToBottomRef} />
         <ConversationScrollButton />
       </Conversation>
       )}
@@ -711,7 +791,15 @@ export default function Chat({
 
       {/* Input area */}
       <div className="grid shrink-0 gap-4 pt-4">
-        <div className="w-full pb-4">
+        <motion.div
+          className="w-full pb-4"
+          animate={
+            inputSentFeedback
+              ? { scale: 0.995 }
+              : { scale: 1 }
+          }
+          transition={{ duration: 0.16, ease: "easeOut" }}
+        >
           <PromptInput
             onSubmit={handleSubmit}
             globalDrop
@@ -853,7 +941,7 @@ export default function Chat({
               </PromptInputSubmit>
             </PromptInputFooter>
           </PromptInput>
-        </div>
+        </motion.div>
       </div>
       <Dialog
         open={Boolean(editingMessage)}
@@ -1168,7 +1256,7 @@ function MessageToolbar({
 
       >
         {copied ? (
-          <ClipboardCheckIcon className="size-3.5" />
+          <CheckIcon className="size-3.5" />
         ) : (
           <CopyIcon className="size-3.5" />
         )}
@@ -1373,6 +1461,14 @@ function getMessageText(message: AppChatMessage) {
     .join("\n\n");
 }
 
+function isEditableTarget(target: HTMLElement | null) {
+  if (!target) return false;
+
+  return Boolean(
+    target.closest("input, textarea, select, [contenteditable='true']"),
+  );
+}
+
 function updateMessageText(message: AppChatMessage, text: string): AppChatMessage {
   let updatedFirstTextPart = false;
 
@@ -1396,6 +1492,24 @@ function getChatErrorMessage(
   }
 
   return t("chat.error.checkModelConfig");
+}
+
+function ConversationScrollController({
+  scrollToBottomRef,
+}: {
+  scrollToBottomRef: RefObject<(() => void) | null>;
+}) {
+  const { scrollToBottom } = useStickToBottomContext();
+
+  useEffect(() => {
+    scrollToBottomRef.current = () => scrollToBottom();
+
+    return () => {
+      scrollToBottomRef.current = null;
+    };
+  }, [scrollToBottom, scrollToBottomRef]);
+
+  return null;
 }
 
 function AssistantLoadingMessage() {
