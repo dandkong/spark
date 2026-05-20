@@ -8,6 +8,9 @@ import { createMoonshotAI } from "@ai-sdk/moonshotai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createVercel } from "@ai-sdk/vercel";
 import { createXai } from "@ai-sdk/xai";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createOllama } from "ollama-ai-provider-v2";
+import { createZhipu } from "zhipu-ai-provider";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import type { ModelSelectorLogoProps } from "@/components/ai-elements/model-selector";
 import type {
@@ -56,6 +59,16 @@ export const BUILTIN_PROVIDER_DEFINITIONS = [
     logo: "moonshotai",
   },
   {
+    id: "zhipuai",
+    name: "Z.AI",
+    logo: "zhipuai",
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    logo: "openrouter",
+  },
+  {
     id: "xai",
     name: "xAI",
     logo: "xai",
@@ -69,6 +82,11 @@ export const BUILTIN_PROVIDER_DEFINITIONS = [
     id: "groq",
     name: "Groq",
     logo: "groq",
+  },
+  {
+    id: "ollama",
+    name: "Ollama",
+    logo: "ollama",
   },
   {
     id: "vercel",
@@ -96,6 +114,10 @@ export const providerNames: Record<string, string> = Object.fromEntries(
 
 export function isBuiltinProvider(providerId: string) {
   return BUILTIN_PROVIDER_DEFINITIONS.some((provider) => provider.id === providerId);
+}
+
+export function isApiKeyOptionalProvider(provider: Pick<ModelProviderConfig, "type">) {
+  return provider.type === "ollama";
 }
 
 export function getProviderNavName(provider: Pick<ModelProviderConfig, "id" | "name">) {
@@ -253,6 +275,12 @@ export function createProviderLanguageModel(
       return createGroq({ apiKey, baseURL })(modelId);
     case "vercel":
       return createVercel({ apiKey, baseURL })(modelId);
+    case "openrouter":
+      return createOpenRouter({ apiKey, baseURL }).chat(modelId);
+    case "ollama":
+      return createOllama({ baseURL })(modelId);
+    case "zhipuai":
+      return createZhipu({ apiKey, baseURL })(modelId);
     case "openai-compatible":
       return createOpenAI({ apiKey, baseURL }).chat(modelId);
     default:

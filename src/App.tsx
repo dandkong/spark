@@ -25,6 +25,7 @@ import type { UserPreferences } from "@/lib/preferences-storage";
 import {
   BUILTIN_MODEL_PROVIDERS,
   createOpenAICompatibleProvider,
+  isApiKeyOptionalProvider,
   isBuiltinProvider,
 } from "@/lib/model-providers";
 import { fetchProviderModels } from "@/lib/models-dev";
@@ -117,7 +118,9 @@ function App() {
     [preferences.activeAssistantId, assistants],
   );
   const configuredProviders = modelProviders.filter(
-    (provider) => provider.apiKey.trim() && provider.models.length > 0,
+    (provider) =>
+      (provider.apiKey.trim() || isApiKeyOptionalProvider(provider)) &&
+      provider.models.length > 0,
   );
   const getAssistantChatConfig = useCallback(
     (assistant: AssistantConfig) => {

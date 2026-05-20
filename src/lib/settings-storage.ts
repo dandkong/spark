@@ -180,6 +180,9 @@ function isModelProviderType(value: unknown): value is ModelProviderType {
     value === "mistral" ||
     value === "groq" ||
     value === "vercel" ||
+    value === "openrouter" ||
+    value === "ollama" ||
+    value === "zhipuai" ||
     value === "openai-compatible"
   );
 }

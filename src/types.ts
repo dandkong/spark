@@ -66,6 +66,9 @@ export type ModelProviderType =
   | "mistral"
   | "groq"
   | "vercel"
+  | "openrouter"
+  | "ollama"
+  | "zhipuai"
   | "openai-compatible";
 
 export type ModelProviderConfig = {
