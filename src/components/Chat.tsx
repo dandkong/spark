@@ -41,13 +41,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
   PromptInput,
@@ -94,6 +87,7 @@ import {
   PencilIcon,
   RefreshCwIcon,
   Trash2Icon,
+  XIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -674,32 +668,62 @@ export default function Chat({
                   status === "streaming") ||
                   mentionGeneratingMessageId === activeReply.id),
             );
+            const editingUserMessage =
+              editingMessage?.id === turn.user.id ? editingMessage : null;
 
             return (
               <div key={turn.user.id} className="grid gap-2">
-                <Message from="user">
+                <Message
+                  from="user"
+                  onBlur={(event) => {
+                    if (!editingUserMessage) return;
+                    const nextFocusedElement = event.relatedTarget;
+                    if (
+                      nextFocusedElement instanceof Node &&
+                      event.currentTarget.contains(nextFocusedElement)
+                    ) {
+                      return;
+                    }
+                    setEditingMessage(null);
+                  }}
+                >
                   <MessageBody
                     isStreaming={false}
                     message={turn.user}
                     messageFontSize={messageFontSize}
-                  />
-                  <MessageToolbar
-                    align="end"
-                    canRegenerate={canRegenerateFromMessage(messages, userIndex)}
-                    disabled={status === "submitted" || status === "streaming"}
-                    canEdit
-                    copied={copiedMessageId === turn.user.id}
-                    onCopy={() => handleCopyMessage(turn.user)}
-                    onDelete={() => handleDeleteMessage(turn.user.id)}
-                    onEdit={() =>
-                      setEditingMessage({
-                        id: turn.user.id,
-                        role: turn.user.role,
-                        text: getMessageText(turn.user),
-                      })
+                    editingText={editingUserMessage?.text ?? null}
+                    onEditingTextChange={(text) =>
+                      setEditingMessage((current) =>
+                        current ? { ...current, text } : current,
+                      )
                     }
-                    onRegenerate={() => handleRegenerate(turn.user.id)}
+                    onSaveEdit={handleSaveEditedMessage}
                   />
+                  {editingUserMessage ? (
+                    <InlineEditToolbar
+                      align="end"
+                      onCancel={() => setEditingMessage(null)}
+                      onSave={handleSaveEditedMessage}
+                    />
+                  ) : (
+                    <MessageToolbar
+                      align="end"
+                      canRegenerate={canRegenerateFromMessage(messages, userIndex)}
+                      disabled={status === "submitted" || status === "streaming"}
+                      canEdit
+                      copied={copiedMessageId === turn.user.id}
+                      onCopy={() => handleCopyMessage(turn.user)}
+                      onDelete={() => handleDeleteMessage(turn.user.id)}
+                      onEdit={() =>
+                        setEditingMessage({
+                          id: turn.user.id,
+                          role: turn.user.role,
+                          text: getMessageText(turn.user),
+                        })
+                      }
+                      onRegenerate={() => handleRegenerate(turn.user.id)}
+                    />
+                  )}
                 </Message>
 
                 {activeReply && (
@@ -942,33 +966,6 @@ export default function Chat({
           </PromptInput>
         </motion.div>
       </div>
-      <Dialog
-        open={Boolean(editingMessage)}
-        onOpenChange={(open) => {
-          if (!open) setEditingMessage(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{t("chat.editMessage.title")}</DialogTitle>
-          </DialogHeader>
-          <Textarea
-            className="min-h-40 resize-none"
-            value={editingMessage?.text ?? ""}
-            onChange={(event) =>
-              setEditingMessage((current) =>
-                current ? { ...current, text: event.target.value } : current,
-              )
-            }
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingMessage(null)}>
-              {t("common.cancel")}
-            </Button>
-            <Button onClick={handleSaveEditedMessage}>{t("common.save")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -1102,16 +1099,34 @@ function PromptInputAttachmentsDisplay() {
 }
 
 function MessageBody({
+  editingText,
   isStreaming,
   message,
   messageFontSize,
+  onEditingTextChange,
+  onSaveEdit,
 }: {
+  editingText?: string | null;
   isStreaming: boolean;
   message: AppChatMessage;
   messageFontSize: number;
+  onEditingTextChange?: (text: string) => void;
+  onSaveEdit?: () => void;
 }) {
   const isEmptyAssistantMessage =
     message.role === "assistant" && message.parts.length === 0;
+
+  if (editingText !== undefined && editingText !== null) {
+    return (
+      <InlineMessageEditor
+        message={message}
+        messageFontSize={messageFontSize}
+        value={editingText}
+        onChange={onEditingTextChange}
+        onSave={onSaveEdit}
+      />
+    );
+  }
 
   return (
     <MessageContent
@@ -1150,6 +1165,52 @@ function MessageBody({
         }
         return null;
       })}
+    </MessageContent>
+  );
+}
+
+function InlineMessageEditor({
+  message,
+  messageFontSize,
+  value,
+  onChange,
+  onSave,
+}: {
+  message: AppChatMessage;
+  messageFontSize: number;
+  value: string;
+  onChange?: (value: string) => void;
+  onSave?: () => void;
+}) {
+  return (
+    <MessageContent
+      className="w-fit max-w-full text-[length:var(--chat-message-font-size)]"
+      style={
+        {
+          "--chat-message-font-size": `${messageFontSize}px`,
+        } as CSSProperties
+      }
+    >
+      <MessageAttachments message={message} />
+      <Textarea
+        autoFocus
+        className="min-h-0 resize-none overflow-hidden border-0 bg-transparent p-0 font-[inherit] text-[length:var(--chat-message-font-size)] shadow-none focus-visible:ring-0 md:text-[length:var(--chat-message-font-size)]"
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
+        onFocus={(event) => {
+          const textarea = event.currentTarget;
+          const cursorPosition = textarea.value.length;
+          textarea.setSelectionRange(cursorPosition, cursorPosition);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+            return;
+          }
+
+          event.preventDefault();
+          onSave?.();
+        }}
+      />
     </MessageContent>
   );
 }
@@ -1210,6 +1271,43 @@ function ReplyTabs({
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
+  );
+}
+
+function InlineEditToolbar({
+  align,
+  onCancel,
+  onSave,
+}: {
+  align: "start" | "end";
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div
+      className={
+        align === "end"
+          ? "flex justify-end gap-1 text-muted-foreground"
+          : "flex justify-start gap-1 text-muted-foreground"
+      }
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={onCancel}
+      >
+        <XIcon className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={onSave}
+      >
+        <CheckIcon className="size-3.5" />
+      </Button>
+    </div>
   );
 }
 
