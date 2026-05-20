@@ -11,6 +11,7 @@ import { createXai } from "@ai-sdk/xai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOllama } from "ollama-ai-provider-v2";
 import { createZhipu } from "zhipu-ai-provider";
+import { createMinimax } from "vercel-minimax-ai-provider";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import type { ModelSelectorLogoProps } from "@/components/ai-elements/model-selector";
 import type {
@@ -62,6 +63,11 @@ export const BUILTIN_PROVIDER_DEFINITIONS = [
     id: "zhipuai",
     name: "Z.AI",
     logo: "zhipuai",
+  },
+  {
+    id: "minimax",
+    name: "MiniMax",
+    logo: "minimax",
   },
   {
     id: "openrouter",
@@ -281,6 +287,8 @@ export function createProviderLanguageModel(
       return createOllama({ baseURL })(modelId);
     case "zhipuai":
       return createZhipu({ apiKey, baseURL })(modelId);
+    case "minimax":
+      return createMinimax({ apiKey, baseURL })(modelId);
     case "openai-compatible":
       return createOpenAI({ apiKey, baseURL }).chat(modelId);
     default:

@@ -183,6 +183,7 @@ function isModelProviderType(value: unknown): value is ModelProviderType {
     value === "openrouter" ||
     value === "ollama" ||
     value === "zhipuai" ||
+    value === "minimax" ||
     value === "openai-compatible"
   );
 }

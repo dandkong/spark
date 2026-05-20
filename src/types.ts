@@ -69,6 +69,7 @@ export type ModelProviderType =
   | "openrouter"
   | "ollama"
   | "zhipuai"
+  | "minimax"
   | "openai-compatible";
 
 export type ModelProviderConfig = {
