@@ -356,7 +356,6 @@ export default function Chat({
       stop();
     }
     setMessages([]);
-    setInput("");
     requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
