@@ -1203,7 +1203,11 @@ function InlineMessageEditor({
           textarea.setSelectionRange(cursorPosition, cursorPosition);
         }}
         onKeyDown={(event) => {
-          if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+          if (
+            event.key !== "Enter" ||
+            event.shiftKey ||
+            event.nativeEvent.isComposing
+          ) {
             return;
           }
 
