@@ -2,8 +2,12 @@ import { createAlibaba } from "@ai-sdk/alibaba";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
+import { createMistral } from "@ai-sdk/mistral";
 import { createMoonshotAI } from "@ai-sdk/moonshotai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createVercel } from "@ai-sdk/vercel";
+import { createXai } from "@ai-sdk/xai";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import type { ModelSelectorLogoProps } from "@/components/ai-elements/model-selector";
 import type {
@@ -22,11 +26,6 @@ type ProviderDefinition = {
 
 export const BUILTIN_PROVIDER_DEFINITIONS = [
   {
-    id: "deepseek",
-    name: "DeepSeek",
-    logo: "deepseek",
-  },
-  {
     id: "openai",
     name: "OpenAI",
     logo: "openai",
@@ -37,9 +36,14 @@ export const BUILTIN_PROVIDER_DEFINITIONS = [
     logo: "google",
   },
   {
-    id: "moonshotai",
-    name: "Moonshot",
-    logo: "moonshotai",
+    id: "anthropic",
+    name: "Anthropic",
+    logo: "anthropic",
+  },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    logo: "deepseek",
   },
   {
     id: "alibaba",
@@ -47,9 +51,29 @@ export const BUILTIN_PROVIDER_DEFINITIONS = [
     logo: "alibaba",
   },
   {
-    id: "anthropic",
-    name: "Anthropic",
-    logo: "anthropic",
+    id: "moonshotai",
+    name: "Moonshot",
+    logo: "moonshotai",
+  },
+  {
+    id: "xai",
+    name: "xAI",
+    logo: "xai",
+  },
+  {
+    id: "mistral",
+    name: "Mistral",
+    logo: "mistral",
+  },
+  {
+    id: "groq",
+    name: "Groq",
+    logo: "groq",
+  },
+  {
+    id: "vercel",
+    name: "Vercel",
+    logo: "vercel",
   },
 ] as const satisfies readonly ProviderDefinition[];
 
@@ -169,6 +193,24 @@ export function createReasoningProviderOptions(
               thinking: { type: "disabled" },
             },
           };
+    case "xai":
+      return {
+        xai: {
+          reasoningEffort: enabled ? "high" : "low",
+        },
+      };
+    case "mistral":
+      return {
+        mistral: {
+          reasoningEffort: enabled ? "high" : "none",
+        },
+      };
+    case "groq":
+      return {
+        groq: {
+          reasoningEffort: enabled ? "medium" : "none",
+        },
+      };
     default:
       return undefined;
   }
@@ -203,6 +245,14 @@ export function createProviderLanguageModel(
       return createAlibaba({ apiKey, baseURL })(modelId);
     case "anthropic":
       return createAnthropic({ apiKey, baseURL })(modelId);
+    case "xai":
+      return createXai({ apiKey, baseURL })(modelId);
+    case "mistral":
+      return createMistral({ apiKey, baseURL })(modelId);
+    case "groq":
+      return createGroq({ apiKey, baseURL })(modelId);
+    case "vercel":
+      return createVercel({ apiKey, baseURL })(modelId);
     case "openai-compatible":
       return createOpenAI({ apiKey, baseURL }).chat(modelId);
     default:

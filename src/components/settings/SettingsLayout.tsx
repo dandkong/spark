@@ -36,8 +36,8 @@ export default function SettingsLayout({
   return (
     <div className="flex size-full flex-col overflow-hidden">
       <div className="flex min-h-0 flex-1">
-        <nav className="w-44 shrink-0 border-r p-2">
-          <div className="grid gap-1">
+        <nav className="flex min-h-0 w-44 shrink-0 flex-col border-r p-2">
+          <div className="grid shrink-0 gap-1">
             <Button
               variant="ghost"
               className={cn(
@@ -100,14 +100,19 @@ export default function SettingsLayout({
               </Button>
             </div>
 
-            {modelProviders.map((provider) => (
-              <ProviderNavItem
-                key={provider.id}
-                provider={provider}
-                active={section === provider.id}
-                onClick={() => navigate(`/settings/${provider.id}`)}
-              />
-            ))}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto pt-1">
+            <div className="grid gap-1">
+              {modelProviders.map((provider) => (
+                <ProviderNavItem
+                  key={provider.id}
+                  provider={provider}
+                  active={section === provider.id}
+                  onClick={() => navigate(`/settings/${provider.id}`)}
+                />
+              ))}
+            </div>
           </div>
         </nav>
 

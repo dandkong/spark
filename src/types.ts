@@ -62,6 +62,10 @@ export type ModelProviderType =
   | "moonshotai"
   | "alibaba"
   | "anthropic"
+  | "xai"
+  | "mistral"
+  | "groq"
+  | "vercel"
   | "openai-compatible";
 
 export type ModelProviderConfig = {

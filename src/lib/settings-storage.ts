@@ -176,6 +176,10 @@ function isModelProviderType(value: unknown): value is ModelProviderType {
     value === "moonshotai" ||
     value === "alibaba" ||
     value === "anthropic" ||
+    value === "xai" ||
+    value === "mistral" ||
+    value === "groq" ||
+    value === "vercel" ||
     value === "openai-compatible"
   );
 }
