@@ -102,7 +102,7 @@ export default function AssistantEditorDialog({
                   systemPrompt: event.target.value,
                 }))
               }
-              className="min-h-48 resize-none"
+              className="min-h-48 max-h-[50dvh] field-sizing-fixed resize-y overflow-y-auto"
             />
           </label>
         </div>
