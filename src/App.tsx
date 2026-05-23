@@ -37,7 +37,7 @@ import type {
   ModelProviderConfig,
 } from "@/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate, useParams, Navigate } from "react-router-dom";
 import { I18nProvider, resolveLocale, translateForLocale } from "@/i18n";
 import { restoreWindowState } from "@/lib/window-state";
 
@@ -86,6 +86,7 @@ type ModelDialogState =
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [assistants, setAssistants] =
     useState<AssistantConfig[]>(initialAssistants);
   const [modelProviders, setModelProviders] =
@@ -398,6 +399,8 @@ function App() {
 
   if (!settingsLoaded) return null;
 
+  const isSettingsRoute = location.pathname.startsWith("/settings");
+
   return (
     <I18nProvider languagePreference={preferences.language}>
     <TooltipProvider>
@@ -422,6 +425,50 @@ function App() {
           <main className="flex min-w-0 flex-1 flex-col">
             <div className="flex h-12 shrink-0 items-center justify-end pr-1" data-tauri-drag-region>
               <HeaderControls />
+            </div>
+            <div className={isSettingsRoute ? "hidden" : "contents"}>
+              {assistants.map((assistant) => {
+                const { provider, models, model } =
+                  getAssistantChatConfig(assistant);
+                const isActive = assistant.id === activeAssistant.id;
+
+                return (
+                  <div
+                    key={assistant.id}
+                    className={isActive ? "contents" : "hidden"}
+                  >
+                    <Chat
+                      assistant={assistant}
+                      providers={configuredProviders}
+                      provider={provider}
+                      models={models}
+                      model={model}
+                      messages={assistantMessages[assistant.id] ?? []}
+                      messageFontSize={preferences.chatMessageFontSize}
+                      reasoningMode={preferences.reasoningMode}
+                      contextMessageLimit={preferences.contextMessageLimit}
+                      mcpServers={mcpServers}
+                      isActive={isActive && !isSettingsRoute}
+                      onReasoningModeChange={(reasoningMode) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          reasoningMode,
+                        }))
+                      }
+                      onMessagesChange={handleAssistantMessagesChange}
+                      onModelChange={(providerId, modelId) =>
+                        setAssistants((current) =>
+                          current.map((item) =>
+                            item.id === assistant.id
+                              ? { ...item, providerId, modelId }
+                              : item,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
+                );
+              })}
             </div>
             <Routes>
               <Route path="/settings" element={
@@ -473,52 +520,7 @@ function App() {
                   />
                 } />
               </Route>
-              <Route path="*" element={
-                <>
-                  {assistants.map((assistant) => {
-                    const { provider, models, model } =
-                      getAssistantChatConfig(assistant);
-                    const isActive = assistant.id === activeAssistant.id;
-
-                    return (
-                      <div
-                        key={assistant.id}
-                        className={isActive ? "contents" : "hidden"}
-                      >
-                        <Chat
-                          assistant={assistant}
-                          providers={configuredProviders}
-                          provider={provider}
-                          models={models}
-                          model={model}
-                          messages={assistantMessages[assistant.id] ?? []}
-                          messageFontSize={preferences.chatMessageFontSize}
-                          reasoningMode={preferences.reasoningMode}
-                          contextMessageLimit={preferences.contextMessageLimit}
-                          mcpServers={mcpServers}
-                          isActive={isActive}
-                          onReasoningModeChange={(reasoningMode) =>
-                            setPreferences((current) => ({
-                              ...current,
-                              reasoningMode,
-                            }))
-                          }
-                          onMessagesChange={handleAssistantMessagesChange}
-                          onModelChange={(providerId, modelId) =>
-                            setAssistants((current) =>
-                              current.map((item) =>
-                                item.id === assistant.id
-                                  ? { ...item, providerId, modelId }
-                                  : item,
-                              ),
-                            )
-                          }
-                        />
-                      </div>
-                    );
-                  })}
-                </>
-              } />
+              <Route path="*" element={null} />
             </Routes>
           </main>
       </div>
