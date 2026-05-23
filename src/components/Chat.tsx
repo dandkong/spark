@@ -834,7 +834,7 @@ export default function Chat({
             <PromptInputBody>
               <PromptInputTextarea
                 ref={inputRef}
-                className="h-28 field-sizing-fixed resize-none overflow-y-auto"
+                className="h-28 max-h-48 field-sizing-fixed resize-none overflow-y-auto"
                 onChange={(e) => setInput(e.target.value)}
                 value={input}
                 placeholder={t("chat.input.placeholder")}
