@@ -1,4 +1,5 @@
 import Chat from "./components/Chat";
+import { PromptInputProvider } from "@/components/ai-elements/prompt-input";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import AssistantSidebar from "@/components/AssistantSidebar";
@@ -426,50 +427,53 @@ function App() {
             <div className="flex h-12 shrink-0 items-center justify-end pr-1" data-tauri-drag-region>
               <HeaderControls />
             </div>
-            <div className={isSettingsRoute ? "hidden" : "contents"}>
-              {assistants.map((assistant) => {
-                const { provider, models, model } =
-                  getAssistantChatConfig(assistant);
-                const isActive = assistant.id === activeAssistant.id;
+            <PromptInputProvider>
+              <div className={isSettingsRoute ? "hidden" : "contents"}>
+                {assistants.map((assistant) => {
+                  const { provider, models, model } =
+                    getAssistantChatConfig(assistant);
+                  const isActive = assistant.id === activeAssistant.id;
 
-                return (
-                  <div
-                    key={assistant.id}
-                    className={isActive ? "contents" : "hidden"}
-                  >
-                    <Chat
-                      assistant={assistant}
-                      providers={configuredProviders}
-                      provider={provider}
-                      models={models}
-                      model={model}
-                      messages={assistantMessages[assistant.id] ?? []}
-                      messageFontSize={preferences.chatMessageFontSize}
-                      reasoningMode={preferences.reasoningMode}
-                      contextMessageLimit={preferences.contextMessageLimit}
-                      mcpServers={mcpServers}
-                      isActive={isActive && !isSettingsRoute}
-                      onReasoningModeChange={(reasoningMode) =>
-                        setPreferences((current) => ({
-                          ...current,
-                          reasoningMode,
-                        }))
-                      }
-                      onMessagesChange={handleAssistantMessagesChange}
-                      onModelChange={(providerId, modelId) =>
-                        setAssistants((current) =>
-                          current.map((item) =>
-                            item.id === assistant.id
-                              ? { ...item, providerId, modelId }
-                              : item,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                );
-              })}
-            </div>
+                  return (
+                    <div
+                      key={assistant.id}
+                      className={isActive ? "contents" : "hidden"}
+                    >
+                      <Chat
+                        assistant={assistant}
+                        providers={configuredProviders}
+                        provider={provider}
+                        models={models}
+                        model={model}
+                        messages={assistantMessages[assistant.id] ?? []}
+                        messageFontSize={preferences.chatMessageFontSize}
+                        reasoningMode={preferences.reasoningMode}
+                        contextMessageLimit={preferences.contextMessageLimit}
+                        mcpServers={mcpServers}
+                        isActive={isActive && !isSettingsRoute}
+                        showInput={isActive && !isSettingsRoute}
+                        onReasoningModeChange={(reasoningMode) =>
+                          setPreferences((current) => ({
+                            ...current,
+                            reasoningMode,
+                          }))
+                        }
+                        onMessagesChange={handleAssistantMessagesChange}
+                        onModelChange={(providerId, modelId) =>
+                          setAssistants((current) =>
+                            current.map((item) =>
+                              item.id === assistant.id
+                                ? { ...item, providerId, modelId }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </PromptInputProvider>
             <Routes>
               <Route path="/settings" element={
                 <SettingsLayout

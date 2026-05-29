@@ -184,6 +184,7 @@ type ChatProps = {
   contextMessageLimit: number | null;
   mcpServers: MCPServerConfig[];
   isActive: boolean;
+  showInput: boolean;
   onReasoningModeChange: (reasoningMode: ReasoningMode) => void;
   onMessagesChange: (assistantId: string, messages: AppChatMessage[]) => void;
   onModelChange: (providerId: string, modelId: string) => void;
@@ -201,6 +202,7 @@ export default function Chat({
   contextMessageLimit,
   mcpServers,
   isActive,
+  showInput,
   onReasoningModeChange,
   onMessagesChange,
   onModelChange,
@@ -292,7 +294,6 @@ export default function Chat({
     messages: initialMessages,
     transport,
   });
-  const [input, setInput] = useState("");
   const [inputSentFeedback, setInputSentFeedback] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputFeedbackTimeoutRef = useRef<number | null>(null);
@@ -630,7 +631,6 @@ export default function Chat({
         text,
         files: message.files,
       });
-      setInput("");
       setInputSentFeedback(true);
       if (inputFeedbackTimeoutRef.current) {
         window.clearTimeout(inputFeedbackTimeoutRef.current);
@@ -813,160 +813,147 @@ export default function Chat({
       )}
 
       {/* Input area */}
-      <div className="grid shrink-0 gap-4 pt-4">
-        <motion.div
-          className="w-full pb-4"
-          animate={
-            inputSentFeedback
-              ? { scale: 0.995 }
-              : { scale: 1 }
-          }
-          transition={{ duration: 0.16, ease: "easeOut" }}
-        >
-          <PromptInput
-            onSubmit={handleSubmit}
-            globalDrop
-            multiple
+      {showInput && (
+        <div className="grid shrink-0 gap-4 pt-4">
+          <motion.div
+            className="w-full pb-4"
+            animate={inputSentFeedback ? { scale: 0.995 } : { scale: 1 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
           >
-            <PromptInputHeader>
-              <PromptInputAttachmentsDisplay />
-            </PromptInputHeader>
-            <PromptInputBody>
-              <PromptInputTextarea
-                ref={inputRef}
-                className="h-28 max-h-48 field-sizing-fixed resize-none overflow-y-auto"
-                onChange={(e) => setInput(e.target.value)}
-                value={input}
-                placeholder={t("chat.input.placeholder")}
-              />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputTools>
-                {providers.some((p) => p.models.length > 0) ? (
-                <ModelSelector
-                  open={modelSelectorOpen}
-                  onOpenChange={setModelSelectorOpen}
-                >
-                  <ModelSelectorTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-
-                      />
-                    }
-                  >
-                    {provider && (
-                      <ModelSelectorLogo provider={getProviderLogo(provider)} className="size-4" />
-                    )}
-                    <ModelSelectorName>
-                      {selectedModelData?.name ?? t("common.selectModel")}
-                    </ModelSelectorName>
-                  </ModelSelectorTrigger>
-                  <ModelSelectorContent>
-                    <ModelSelectorInput placeholder={t("common.searchModels")} />
-                    <ModelSelectorList>
-                      <ModelSelectorEmpty>{t("common.modelNotFound")}</ModelSelectorEmpty>
-                      {providers.map((modelProvider) => (
-                        <ModelSelectorGroup
-                          key={modelProvider.id}
-                          heading={getProviderDisplayName(modelProvider)}
-                        >
-                          {modelProvider.models.map((m) => (
-                            <ModelSelectorItem
-                              key={`${modelProvider.id}:${m.id}`}
-                              value={`${modelProvider.id}:${m.id}`}
-                              onSelect={() => {
-                                onModelChange(modelProvider.id, m.id);
-                                setModelSelectorOpen(false);
-                              }}
+            <PromptInput onSubmit={handleSubmit} globalDrop multiple>
+              <PromptInputHeader>
+                <PromptInputAttachmentsDisplay />
+              </PromptInputHeader>
+              <PromptInputBody>
+                <PromptInputTextarea
+                  ref={inputRef}
+                  className="h-28 max-h-48 field-sizing-fixed resize-none overflow-y-auto"
+                  placeholder={t("chat.input.placeholder")}
+                />
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  {providers.some((p) => p.models.length > 0) ? (
+                    <ModelSelector
+                      open={modelSelectorOpen}
+                      onOpenChange={setModelSelectorOpen}
+                    >
+                      <ModelSelectorTrigger
+                        render={
+                          <Button type="button" variant="outline" size="sm" />
+                        }
+                      >
+                        {provider && (
+                          <ModelSelectorLogo
+                            provider={getProviderLogo(provider)}
+                            className="size-4"
+                          />
+                        )}
+                        <ModelSelectorName>
+                          {selectedModelData?.name ?? t("common.selectModel")}
+                        </ModelSelectorName>
+                      </ModelSelectorTrigger>
+                      <ModelSelectorContent>
+                        <ModelSelectorInput placeholder={t("common.searchModels")} />
+                        <ModelSelectorList>
+                          <ModelSelectorEmpty>
+                            {t("common.modelNotFound")}
+                          </ModelSelectorEmpty>
+                          {providers.map((modelProvider) => (
+                            <ModelSelectorGroup
+                              key={modelProvider.id}
+                              heading={getProviderDisplayName(modelProvider)}
                             >
-                              <ModelSelectorLogo
-                                provider={getProviderLogo(modelProvider)}
-                              />
-                              <ModelSelectorName>{m.name}</ModelSelectorName>
-                              {provider?.id === modelProvider.id && model === m.id ? (
-                                <CheckIcon className="ml-auto size-4" />
-                              ) : (
-                                <div className="ml-auto size-4" />
-                              )}
-                            </ModelSelectorItem>
+                              {modelProvider.models.map((m) => (
+                                <ModelSelectorItem
+                                  key={`${modelProvider.id}:${m.id}`}
+                                  value={`${modelProvider.id}:${m.id}`}
+                                  onSelect={() => {
+                                    onModelChange(modelProvider.id, m.id);
+                                    setModelSelectorOpen(false);
+                                  }}
+                                >
+                                  <ModelSelectorLogo
+                                    provider={getProviderLogo(modelProvider)}
+                                  />
+                                  <ModelSelectorName>{m.name}</ModelSelectorName>
+                                  {provider?.id === modelProvider.id &&
+                                  model === m.id ? (
+                                    <CheckIcon className="ml-auto size-4" />
+                                  ) : (
+                                    <div className="ml-auto size-4" />
+                                  )}
+                                </ModelSelectorItem>
+                              ))}
+                            </ModelSelectorGroup>
                           ))}
-                        </ModelSelectorGroup>
-                      ))}
-                    </ModelSelectorList>
-                  </ModelSelectorContent>
-                </ModelSelector>
-                ) : (
+                        </ModelSelectorList>
+                      </ModelSelectorContent>
+                    </ModelSelector>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        toast.error(t("chat.error.configureModel"));
+                      }}
+                    >
+                      {t("chat.input.noModels")}
+                    </Button>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={<Button type="button" variant="outline" size="sm" />}
+                    >
+                      <BrainIcon className="size-4" />
+                      <span>{reasoningModeLabels[reasoningMode]}</span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-28">
+                      {(Object.keys(reasoningModeLabels) as ReasoningMode[]).map(
+                        (mode) => (
+                          <DropdownMenuItem
+                            key={mode}
+                            onClick={() => onReasoningModeChange(mode)}
+                          >
+                            <CheckIcon
+                              className={cn(
+                                "size-4",
+                                reasoningMode === mode
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+                            {reasoningModeLabels[mode]}
+                          </DropdownMenuItem>
+                        ),
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <PromptInputAttachmentButton />
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      toast.error(t("chat.error.configureModel"));
-                    }}
+                    onClick={handleClear}
                   >
-                    {t("chat.input.noModels")}
+                    <EraserIcon className="size-4" />
                   </Button>
-                )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-
-                      />
-                    }
-                  >
-                    <BrainIcon className="size-4" />
-                    <span>{reasoningModeLabels[reasoningMode]}</span>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-28">
-                    {(Object.keys(reasoningModeLabels) as ReasoningMode[]).map(
-                      (mode) => (
-                        <DropdownMenuItem
-                          key={mode}
-                          onClick={() => onReasoningModeChange(mode)}
-                        >
-                          <CheckIcon
-                            className={cn(
-                              "size-4",
-                              reasoningMode === mode
-                                ? "opacity-100"
-                                : "opacity-0",
-                            )}
-                          />
-                          {reasoningModeLabels[mode]}
-                        </DropdownMenuItem>
-                      ),
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <PromptInputAttachmentButton />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClear}
-
+                </PromptInputTools>
+                <PromptInputSubmit
+                  className="rounded-full"
+                  status={status}
+                  onStop={stop}
                 >
-                  <EraserIcon className="size-4" />
-                </Button>
-              </PromptInputTools>
-              <PromptInputSubmit
-                className="rounded-full"
-                status={status}
-                onStop={stop}
-              >
-                {status === "ready" ? <ArrowUpIcon className="size-4" /> : undefined}
-              </PromptInputSubmit>
-            </PromptInputFooter>
-          </PromptInput>
-        </motion.div>
-      </div>
+                  {status === "ready" ? (
+                    <ArrowUpIcon className="size-4" />
+                  ) : undefined}
+                </PromptInputSubmit>
+              </PromptInputFooter>
+            </PromptInput>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
