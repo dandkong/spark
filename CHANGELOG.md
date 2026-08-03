@@ -1,5 +1,13 @@
 # 更新日志
 
+## 0.6.0
+
+- 自定义供应商支持选择 API 类型：openai-compatible（Chat Completions）、openai-responses（Responses API）、anthropic（Messages）、gemini（Gemini）。
+- 新建供应商时可在对话框中选择 API 类型，设置页中也可随时切换。
+- 自定义供应商类型集中管理（CUSTOM_PROVIDER_TYPES），后续新增类型只需加一项。
+- 自定义供应商按类型显示对应品牌 logo。
+- 修复设置页下拉框宽度与其他表单项不一致的问题。
+
 ## 0.4.0
 
 - 增加旁路多模型回答：同一条用户消息可通过 `@` 让其他模型生成一次候选回答。

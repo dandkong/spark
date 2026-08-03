@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
 import type {
   ModelProviderConfig,
@@ -7,8 +8,25 @@ import {
 } from "@/components/ai-elements/model-selector";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  CUSTOM_PROVIDER_TYPES,
   getProviderLogo,
   getProviderNavName,
+  type CustomProviderType,
 } from "@/lib/model-providers";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -22,7 +40,7 @@ import {
 
 type SettingsLayoutProps = {
   modelProviders: ModelProviderConfig[];
-  onCreateProvider: (name?: string) => string;
+  onCreateProvider: (name: string, type: CustomProviderType) => string;
 };
 
 export default function SettingsLayout({
@@ -32,6 +50,27 @@ export default function SettingsLayout({
   const navigate = useNavigate();
   const { section } = useParams();
   const { t } = useI18n();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [providerName, setProviderName] = useState(
+    t("settings.providers.custom"),
+  );
+  const [providerType, setProviderType] =
+    useState<CustomProviderType>("openai-compatible");
+
+  const openCreateDialog = () => {
+    setProviderName(t("settings.providers.custom"));
+    setProviderType("openai-compatible");
+    setCreateDialogOpen(true);
+  };
+
+  const handleCreate = () => {
+    const id = onCreateProvider(
+      providerName.trim() || t("settings.providers.custom"),
+      providerType,
+    );
+    setCreateDialogOpen(false);
+    navigate(`/settings/${id}`);
+  };
 
   return (
     <div className="flex size-full flex-col overflow-hidden">
@@ -91,10 +130,7 @@ export default function SettingsLayout({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => {
-                  const id = onCreateProvider(t("settings.providers.custom"));
-                  navigate(`/settings/${id}`);
-                }}
+                onClick={openCreateDialog}
               >
                 <PlusIcon className="size-3.5" />
               </Button>
@@ -120,6 +156,58 @@ export default function SettingsLayout({
           <Outlet />
         </div>
       </div>
+
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("settings.providers.newProvider")}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">{t("common.name")}</span>
+              <Input
+                autoFocus
+                value={providerName}
+                onChange={(event) => setProviderName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleCreate();
+                }}
+              />
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">
+                {t("settings.providers.apiType")}
+              </span>
+              <Select
+                value={providerType}
+                onValueChange={(value) =>
+                  setProviderType(value as CustomProviderType)
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CUSTOM_PROVIDER_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleCreate}>{t("common.save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

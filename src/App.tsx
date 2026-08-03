@@ -25,9 +25,10 @@ import {
 import type { UserPreferences } from "@/lib/preferences-storage";
 import {
   BUILTIN_MODEL_PROVIDERS,
-  createOpenAICompatibleProvider,
+  createCustomProvider,
   isApiKeyOptionalProvider,
   isBuiltinProvider,
+  type CustomProviderType,
 } from "@/lib/model-providers";
 import { fetchProviderModels } from "@/lib/models-dev";
 import type {
@@ -342,8 +343,8 @@ function App() {
     );
   };
 
-  const handleCreateProvider = (name?: string) => {
-    const provider = createOpenAICompatibleProvider(name);
+  const handleCreateProvider = (name: string, type: CustomProviderType = "openai-compatible") => {
+    const provider = createCustomProvider(name, type);
     setModelProviders((current) => [...current, provider]);
     return provider.id;
   };
@@ -374,7 +375,9 @@ function App() {
 
   const handleUpdateProvider = (
     providerId: string,
-    patch: Partial<Pick<ModelProviderConfig, "name" | "apiKey" | "baseURL">>,
+    patch: Partial<
+      Pick<ModelProviderConfig, "name" | "apiKey" | "baseURL" | "type">
+    >,
   ) => {
     setModelProviders((current) =>
       current.map((provider) =>
@@ -572,7 +575,9 @@ function ProviderRoute({
   onDeleteProvider: (providerId: string) => void;
   onUpdateProvider: (
     providerId: string,
-    patch: Partial<Pick<ModelProviderConfig, "name" | "apiKey" | "baseURL">>,
+    patch: Partial<
+      Pick<ModelProviderConfig, "name" | "apiKey" | "baseURL" | "type">
+    >,
   ) => void;
   onFetchModels: (providerId: string) => Promise<ModelConfig[]>;
 }) {

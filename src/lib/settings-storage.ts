@@ -1,5 +1,5 @@
 import { load, type Store } from "@tauri-apps/plugin-store";
-import { isBuiltinProvider } from "@/lib/model-providers";
+import { isBuiltinProvider, CUSTOM_PROVIDER_TYPES } from "@/lib/model-providers";
 import type {
   AssistantConfig,
   MCPServerConfig,
@@ -170,21 +170,9 @@ function normalizeProviderType(type: unknown, providerId: string): ModelProvider
 
 function isModelProviderType(value: unknown): value is ModelProviderType {
   return (
-    value === "deepseek" ||
-    value === "openai" ||
-    value === "google" ||
-    value === "moonshotai" ||
-    value === "alibaba" ||
-    value === "anthropic" ||
-    value === "xai" ||
-    value === "mistral" ||
-    value === "groq" ||
-    value === "vercel" ||
-    value === "openrouter" ||
-    value === "ollama" ||
-    value === "zhipuai" ||
-    value === "minimax" ||
-    value === "openai-compatible"
+    typeof value === "string" &&
+    (isBuiltinProvider(value) ||
+      (CUSTOM_PROVIDER_TYPES as readonly string[]).includes(value))
   );
 }
 

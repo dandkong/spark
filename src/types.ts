@@ -70,7 +70,9 @@ export type ModelProviderType =
   | "ollama"
   | "zhipuai"
   | "minimax"
-  | "openai-compatible";
+  | "openai-compatible"
+  | "openai-responses"
+  | "gemini";
 
 export type ModelProviderConfig = {
   id: string;

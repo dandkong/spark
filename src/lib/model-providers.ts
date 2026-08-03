@@ -143,17 +143,36 @@ export function getProviderLogo(provider: Pick<ModelProviderConfig, "id" | "type
       ?.logo ??
     BUILTIN_PROVIDER_DEFINITIONS.find((provider) => provider.id === providerType)
       ?.logo ??
+    CUSTOM_PROVIDER_LOGOS[providerType as CustomProviderType] ??
     "openai"
   );
 }
 
-export function createOpenAICompatibleProvider(
+/** 自定义供应商可选类型：新增类型只需在这里加一项。 */
+export const CUSTOM_PROVIDER_TYPES = [
+  "openai-compatible",
+  "openai-responses",
+  "anthropic",
+  "gemini",
+] as const;
+
+export type CustomProviderType = (typeof CUSTOM_PROVIDER_TYPES)[number];
+
+const CUSTOM_PROVIDER_LOGOS: Record<CustomProviderType, ProviderLogo> = {
+  "openai-compatible": "openai",
+  "openai-responses": "openai",
+  anthropic: "anthropic",
+  gemini: "google",
+};
+
+export function createCustomProvider(
   name = "Custom Provider",
+  type: CustomProviderType = "openai-compatible",
 ): ModelProviderConfig {
   return {
     id: crypto.randomUUID(),
     name,
-    type: "openai-compatible",
+    type,
     builtin: false,
     apiKey: "",
     baseURL: "",
@@ -174,6 +193,7 @@ export function createReasoningProviderOptions(
   switch (providerType) {
     case "openai":
     case "openai-compatible":
+    case "openai-responses":
       return {
         openai: {
           reasoningEffort: enabled ? "medium" : "none",
@@ -202,6 +222,7 @@ export function createReasoningProviderOptions(
         },
       };
     case "google":
+    case "gemini":
       return {
         google: {
           thinkingConfig: enabled
@@ -266,6 +287,7 @@ export function createProviderLanguageModel(
     case "openai":
       return createOpenAI({ apiKey, baseURL })(modelId);
     case "google":
+    case "gemini":
       return createGoogleGenerativeAI({ apiKey, baseURL })(modelId);
     case "moonshotai":
       return createMoonshotAI({ apiKey, baseURL })(modelId);
@@ -291,6 +313,8 @@ export function createProviderLanguageModel(
       return createMinimax({ apiKey, baseURL })(modelId);
     case "openai-compatible":
       return createOpenAI({ apiKey, baseURL }).chat(modelId);
+    case "openai-responses":
+      return createOpenAI({ apiKey, baseURL }).responses(modelId);
     default:
       return createOpenAI({ apiKey, baseURL }).chat(modelId);
   }

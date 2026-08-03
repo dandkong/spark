@@ -20,8 +20,17 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  CUSTOM_PROVIDER_TYPES,
   getProviderDisplayName,
   getProviderLogo,
+  type CustomProviderType,
 } from "@/lib/model-providers";
 import {
   CheckIcon,
@@ -49,7 +58,9 @@ export default function ProviderSettings({
 }: {
   provider: ModelProviderConfig;
   onUpdateProvider: (
-    patch: Partial<Pick<ModelProviderConfig, "name" | "apiKey" | "baseURL">>,
+    patch: Partial<
+      Pick<ModelProviderConfig, "name" | "apiKey" | "baseURL" | "type">
+    >,
   ) => void;
   onCreate: () => void;
   onAdd: (model: ModelConfig) => void;
@@ -146,6 +157,30 @@ export default function ProviderSettings({
             </InputGroupAddon>
           </InputGroup>
         </label>
+        {!provider.builtin && (
+          <label className="grid gap-2">
+            <span className="text-sm font-medium">
+              {t("settings.providers.apiType")}
+            </span>
+            <Select
+              value={provider.type}
+              onValueChange={(value) =>
+                onUpdateProvider({ type: value as CustomProviderType })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CUSTOM_PROVIDER_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-3">

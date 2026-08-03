@@ -37,6 +37,8 @@ const enUS = {
   "settings.mcp.jsonParseFailed": "Unable to parse JSON.",
   "settings.providers.title": "Providers",
   "settings.providers.custom": "Custom Provider",
+  "settings.providers.newProvider": "New provider",
+  "settings.providers.apiType": "API type",
   "settings.providers.delete": "Delete provider",
   "settings.providers.baseUrl": "Base URL ({optional})",
   "settings.providers.models": "Models",
