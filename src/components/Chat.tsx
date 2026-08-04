@@ -110,7 +110,12 @@ import {
   getProviderLogo,
   getSupportedReasoningModes,
 } from "@/lib/model-providers";
-import { getEnabledMCPTools } from "@/lib/mcp";
+import {
+  getCachedMCPTools,
+  getMCPStatus,
+  onMCPStatusChange,
+  type MCPServerStatus,
+} from "@/lib/mcp";
 import { useI18n } from "@/i18n";
 
 function buildAssistantInstructions(systemPrompt: string) {
@@ -277,10 +282,10 @@ export default function Chat({
         instructions: assistantInstructions,
         providerOptions: reasoningProviderOptions,
         prepareCall: async (options) => {
-          const tools = await getEnabledMCPTools(mcpServers);
+          // 发消息不触发连接：用已预热的缓存，有就注册，没有就跳过
           return {
             ...options,
-            tools,
+            tools: getCachedMCPTools(),
           };
         },
       }),
@@ -320,6 +325,39 @@ export default function Chat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputFeedbackTimeoutRef = useRef<number | null>(null);
   const scrollToBottomRef = useRef<(() => void) | null>(null);
+  const previousMcpFailedIds = useRef<Set<string>>(new Set());
+
+  // 订阅 MCP 连接状态：失败/恢复时 toast 提示
+  useEffect(() => {
+    const applyStatus = (status: MCPServerStatus[]) => {
+      const failed = status.filter((server) => server.status === "failed");
+      const failedIds = new Set(failed.map((server) => server.id));
+      const previous = previousMcpFailedIds.current;
+
+      for (const server of failed) {
+        if (!previous.has(server.id)) {
+          toast.error(t("chat.mcp.connectFailed"), {
+            description: server.name,
+          });
+        }
+      }
+      for (const id of previous) {
+        if (!failedIds.has(id)) {
+          const server = status.find((item) => item.id === id);
+          if (server) {
+            toast.success(t("chat.mcp.reconnected"), {
+              description: server.name,
+            });
+          }
+        }
+      }
+
+      previousMcpFailedIds.current = failedIds;
+    };
+
+    applyStatus(getMCPStatus());
+    return onMCPStatusChange(applyStatus);
+  }, [t]);
 
   useEffect(() => {
     if (!isActive || editingMessage || modelSelectorOpen) return;

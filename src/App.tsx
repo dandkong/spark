@@ -31,6 +31,7 @@ import {
   type CustomProviderType,
 } from "@/lib/model-providers";
 import { fetchProviderModels } from "@/lib/models-dev";
+import { initMCP } from "@/lib/mcp";
 import type {
   AppChatMessage,
   AssistantConfig,
@@ -177,6 +178,12 @@ function App() {
   useEffect(() => {
     if (!settingsLoaded) return;
     saveMCPServers(mcpServers);
+  }, [mcpServers, settingsLoaded]);
+
+  // MCP 预热：应用启动/配置变化时后台建立连接（发消息不再触发连接）
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    void initMCP(mcpServers);
   }, [mcpServers, settingsLoaded]);
 
   useEffect(() => {

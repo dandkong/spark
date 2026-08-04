@@ -18,6 +18,12 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { MCPServerConfig, MCPTransportType } from "@/types";
+import {
+  getMCPStatus,
+  onMCPStatusChange,
+  type MCPServerStatus,
+} from "@/lib/mcp";
+import { cn } from "@/lib/utils";
 import { Edit3Icon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n";
@@ -55,6 +61,14 @@ export default function MCPSettings({
     open: false,
     server: null,
   });
+  const [status, setStatus] = useState<MCPServerStatus[]>([]);
+
+  // 订阅 MCP 连接状态（预热在 App 启动时进行）
+  useEffect(() => {
+    const apply = (next: MCPServerStatus[]) => setStatus(next);
+    apply(getMCPStatus());
+    return onMCPStatusChange(apply);
+  }, []);
 
   const openCreate = () => setDialog({ open: true, server: null });
   const openEdit = (server: MCPServerConfig) =>
@@ -103,6 +117,17 @@ export default function MCPSettings({
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "size-2 shrink-0 rounded-full",
+                    getServerStatus(server.id, status) === "connected"
+                      ? "bg-emerald-500"
+                      : getServerStatus(server.id, status) === "failed"
+                        ? "bg-red-500"
+                        : "bg-muted-foreground/40",
+                  )}
+                  title={getServerStatusError(server.id, status)}
+                />
                 <div className="truncate text-sm font-medium">
                   {server.name}
                 </div>
@@ -151,6 +176,17 @@ export default function MCPSettings({
       />
     </SettingsContent>
   );
+}
+
+function getServerStatus(
+  serverId: string,
+  status: MCPServerStatus[],
+): "connected" | "failed" | "unknown" {
+  return status.find((item) => item.id === serverId)?.status ?? "unknown";
+}
+
+function getServerStatusError(serverId: string, status: MCPServerStatus[]) {
+  return status.find((item) => item.id === serverId)?.error;
 }
 
 function MCPServerDialog({

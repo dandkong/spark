@@ -68,6 +68,8 @@ const enUS = {
   "chat.reasoning.medium": "Medium",
   "chat.reasoning.high": "High",
   "chat.reasoning.xhigh": "X-High",
+  "chat.mcp.connectFailed": "MCP connection failed",
+  "chat.mcp.reconnected": "MCP reconnected",
   "chat.error.requestFailed": "Request failed",
   "chat.error.copyFailed": "Copy failed",
   "chat.error.emptyMessage": "Message cannot be empty",

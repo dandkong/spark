@@ -4,8 +4,27 @@ import type { MCPServerConfig } from "@/types";
 
 type MCPRuntime = {
   signature: string;
-  clients: MCPClient[];
+  clients: Map<string, MCPClient>;
   tools: ToolSet;
+  /** 服务器配置快照，用于状态展示 */
+  servers: MCPServerConfig[];
+  /** 连接失败的服务器（失败即失败，重连需修改配置或重启） */
+  failed: FailedServer[];
+};
+
+type FailedServer = {
+  id: string;
+  name: string;
+  url: string;
+  error: string;
+};
+
+export type MCPServerStatus = {
+  id: string;
+  name: string;
+  url: string;
+  status: "connected" | "failed";
+  error?: string;
 };
 
 const MCP_SERVER_INIT_TIMEOUT_MS = 15_000;
@@ -28,16 +47,64 @@ type PendingMCPRuntime = {
 let runtimePromise: PendingMCPRuntime | null = null;
 let runtime: MCPRuntime | null = null;
 
-export async function getEnabledMCPTools(servers: MCPServerConfig[]) {
+// --- 状态订阅（供 UI 提示） ---
+
+type MCPStatusListener = (status: MCPServerStatus[]) => void;
+const statusListeners = new Set<MCPStatusListener>();
+
+export function getMCPStatus(): MCPServerStatus[] {
+  if (!runtime) return [];
+
+  return runtime.servers.map((server) => {
+    if (runtime!.clients.has(server.id)) {
+      return {
+        id: server.id,
+        name: server.name,
+        url: server.url,
+        status: "connected",
+      };
+    }
+    const failed = runtime!.failed.find((item) => item.id === server.id);
+    return {
+      id: server.id,
+      name: server.name,
+      url: server.url,
+      status: "failed",
+      error: failed?.error ?? "connecting",
+    };
+  });
+}
+
+/** 订阅 MCP 连接状态变化，返回取消订阅函数。 */
+export function onMCPStatusChange(listener: MCPStatusListener) {
+  statusListeners.add(listener);
+  return () => {
+    statusListeners.delete(listener);
+  };
+}
+
+function notifyMCPStatusChange() {
+  const status = getMCPStatus();
+  for (const listener of statusListeners) listener(status);
+}
+
+// --- 连接管理 ---
+
+/**
+ * 预热/重建 MCP 连接（应用启动、配置变化时调用）。
+ * 幂等：签名相同且已连接则直接返回；连接在后台进行，不阻塞调用方。
+ */
+export async function initMCP(servers: MCPServerConfig[]) {
   const enabledServers = servers.filter((server) => server.enabled);
   const signature = createRuntimeSignature(enabledServers);
 
   if (!enabledServers.length) {
     await closeRuntime();
-    return {};
+    return;
   }
 
-  if (runtime?.signature === signature) return runtime.tools;
+  if (runtime?.signature === signature) return;
+
   if (runtimePromise?.signature !== signature) {
     runtimePromise = {
       signature,
@@ -45,8 +112,12 @@ export async function getEnabledMCPTools(servers: MCPServerConfig[]) {
     };
   }
 
-  const nextRuntime = await runtimePromise.promise;
-  return nextRuntime.signature === signature ? nextRuntime.tools : {};
+  await runtimePromise.promise;
+}
+
+/** 同步读取当前已注册的 MCP 工具（发消息用，不触发连接、不阻塞）。 */
+export function getCachedMCPTools(): ToolSet {
+  return runtime?.tools ?? {};
 }
 
 export async function closeMCPRuntime() {
@@ -61,7 +132,7 @@ async function createRuntime(
     const previousRuntime = runtime;
     runtime = null;
     await Promise.allSettled(
-      previousRuntime.clients.map((client) => client.close()),
+      [...previousRuntime.clients.values()].map((client) => client.close()),
     );
   }
 
@@ -74,13 +145,11 @@ async function createRuntime(
     })),
   });
 
-  const clients: MCPClient[] = [];
+  const clients = new Map<string, MCPClient>();
   const tools: ToolSet = {};
+  const failed: FailedServer[] = [];
 
   for (const server of servers) {
-    const abortController = new AbortController();
-    let client: MCPClient | null = null;
-
     try {
       console.info(`[MCP:${server.id}] Connecting`, {
         name: server.name,
@@ -88,40 +157,8 @@ async function createRuntime(
         url: server.url,
       });
 
-      client = await withTimeout(
-        createMCPClient({
-          name: `spark-${server.id}`,
-          transport: {
-            type: server.transportType,
-            url: server.url,
-            headers: server.headers,
-            fetch: (input, init) =>
-              mcpFetch(input, {
-                ...init,
-                signal: abortController.signal,
-              }),
-          },
-          onUncaughtError: (error) => {
-            console.error(`[MCP:${server.id}] Uncaught error`, error);
-          },
-        }),
-        MCP_SERVER_INIT_TIMEOUT_MS,
-        `[MCP:${server.id}] connect timed out`,
-        abortController,
-      );
-
-      const definitions = await withTimeout(
-        client.listTools(),
-        MCP_SERVER_INIT_TIMEOUT_MS,
-        `[MCP:${server.id}] list tools timed out`,
-        abortController,
-      );
-      clients.push(client);
-      const serverTools = client.toolsFromDefinitions(definitions);
-      console.info(`[MCP:${server.id}] Tools discovered`, {
-        count: definitions.tools.length,
-        tools: definitions.tools.map((tool) => tool.name),
-      });
+      const { client, tools: serverTools } = await connectServer(server);
+      clients.set(server.id, client);
 
       for (const [toolName, toolDefinition] of Object.entries(serverTools)) {
         const registeredName = getRegisteredToolName(tools, server.id, toolName);
@@ -132,26 +169,85 @@ async function createRuntime(
         );
       }
     } catch (error) {
-      if (client) {
-        await Promise.allSettled([client.close()]);
-      }
       console.error(`[MCP:${server.id}] Failed to initialize`, error);
+      failed.push({
+        id: server.id,
+        name: server.name,
+        url: server.url,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
   if (runtimePromise?.signature !== signature) {
-    await Promise.allSettled(clients.map((client) => client.close()));
-    return { signature, clients: [], tools: {} };
+    await Promise.allSettled(
+      [...clients.values()].map((client) => client.close()),
+    );
+    return {
+      signature,
+      clients: new Map(),
+      tools: {},
+      servers,
+      failed: [],
+    };
   }
 
-  runtime = { signature, clients, tools };
+  runtime = {
+    signature,
+    clients,
+    tools,
+    servers,
+    failed,
+  };
   runtimePromise = null;
   console.info("[MCP] Registered tools", {
     count: Object.keys(tools).length,
     tools: Object.keys(tools),
   });
+  notifyMCPStatusChange();
 
   return runtime;
+}
+
+async function connectServer(server: MCPServerConfig) {
+  const abortController = new AbortController();
+
+  const client = await withTimeout(
+    createMCPClient({
+      name: `spark-${server.id}`,
+      transport: {
+        type: server.transportType,
+        url: server.url,
+        headers: server.headers,
+        fetch: (input, init) =>
+          mcpFetch(input, {
+            ...init,
+            signal: abortController.signal,
+          }),
+      },
+      onUncaughtError: (error) => {
+        console.error(`[MCP:${server.id}] Uncaught error`, error);
+      },
+    }),
+    MCP_SERVER_INIT_TIMEOUT_MS,
+    `[MCP:${server.id}] connect timed out`,
+    abortController,
+  );
+
+  const definitions = await withTimeout(
+    client.listTools(),
+    MCP_SERVER_INIT_TIMEOUT_MS,
+    `[MCP:${server.id}] list tools timed out`,
+    abortController,
+  );
+
+  const serverTools = client.toolsFromDefinitions(definitions);
+  console.info(`[MCP:${server.id}] Tools discovered`, {
+    count: definitions.tools.length,
+    tools: definitions.tools.map((tool) => tool.name),
+  });
+
+  return { client, tools: serverTools };
 }
 
 async function closeRuntime() {
@@ -160,7 +256,10 @@ async function closeRuntime() {
   runtimePromise = null;
 
   if (!currentRuntime) return;
-  await Promise.allSettled(currentRuntime.clients.map((client) => client.close()));
+  await Promise.allSettled(
+    [...currentRuntime.clients.values()].map((client) => client.close()),
+  );
+  notifyMCPStatusChange();
 }
 
 async function withTimeout<T>(
