@@ -46,10 +46,9 @@ export async function loadPreferences(
       chatMessageFontSize: Number.isFinite(fontSize)
         ? clamp(fontSize, 12, 22)
         : fallback.chatMessageFontSize,
-      reasoningMode: normalizeReasoningMode(
-        stored.reasoningMode,
-        fallback.reasoningMode,
-      ),
+      reasoningMode: isReasoningMode(stored.reasoningMode)
+        ? stored.reasoningMode
+        : fallback.reasoningMode,
       sidebarCollapsed:
         typeof stored.sidebarCollapsed === "boolean"
           ? stored.sidebarCollapsed
@@ -75,15 +74,6 @@ export async function savePreferences(preferences: UserPreferences) {
   } catch {
     // Store is unavailable in plain browser dev mode.
   }
-}
-
-/** 旧版本只有 auto/off/on，把 "on" 迁移到中等思考档。 */
-function normalizeReasoningMode(
-  value: unknown,
-  fallback: ReasoningMode,
-): ReasoningMode {
-  if (value === "on") return "medium";
-  return isReasoningMode(value) ? value : fallback;
 }
 
 function isReasoningMode(value: unknown): value is ReasoningMode {
