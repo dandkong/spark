@@ -105,6 +105,7 @@ import type {
 import {
   createProviderLanguageModel,
   createReasoningProviderOptions,
+  getEffectiveReasoningMode,
   getProviderDisplayName,
   getProviderLogo,
   getSupportedReasoningModes,
@@ -244,6 +245,11 @@ export default function Chat({
   const supportedReasoningModes = useMemo(
     () => getSupportedReasoningModes(effectiveProvider),
     [effectiveProvider],
+  );
+  /** 全局偏好在当前供应商下的生效表达（偏好本身不动，只影响显示/高亮）。 */
+  const effectiveReasoningMode = useMemo(
+    () => getEffectiveReasoningMode(effectiveProvider, reasoningMode),
+    [effectiveProvider, reasoningMode],
   );
   /** 开关型供应商（只注册了单档）：思考档统一显示为“开启”。 */
   const isSwitchOnlyReasoning = supportedReasoningModes.length === 3;
@@ -923,7 +929,7 @@ export default function Chat({
                       render={<Button type="button" variant="outline" size="sm" />}
                     >
                       <BrainIcon className="size-4" />
-                      <span>{getReasoningModeLabel(reasoningMode)}</span>
+                      <span>{getReasoningModeLabel(effectiveReasoningMode)}</span>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-32">
                       {supportedReasoningModes.map((mode) => (
@@ -934,7 +940,7 @@ export default function Chat({
                           <CheckIcon
                             className={cn(
                               "size-4",
-                              reasoningMode === mode
+                              effectiveReasoningMode === mode
                                 ? "opacity-100"
                                 : "opacity-0",
                             )}

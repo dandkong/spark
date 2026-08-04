@@ -370,6 +370,25 @@ export function getSupportedReasoningModes(
   return ["auto", "off", ...levels];
 }
 
+/**
+ * 全局偏好 → 当前供应商下的生效表达（偏好本身不改，只用于 UI 显示/高亮）：
+ * - 无能力供应商：任何值都归为 auto
+ * - 思考档不在支持列表里：按塌缩规则归到最近的档（与请求层一致）
+ */
+export function getEffectiveReasoningMode(
+  provider: Pick<ModelProviderConfig, "id" | "type">,
+  reasoningMode: ReasoningMode,
+): ReasoningMode {
+  if (reasoningMode === "auto") return "auto";
+
+  const providerType = provider.type ?? provider.id;
+  const levels = REASONING_LEVELS[providerType];
+  if (!levels?.length) return "auto";
+
+  if (reasoningMode === "off") return "off";
+  return collapseLevel(reasoningMode, levels);
+}
+
 function createGoogleThinkingConfig(modelId: string, level: EffortLevel) {
   if (modelId.startsWith("gemini-3")) {
     return { thinkingLevel: level, includeThoughts: true };
