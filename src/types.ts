@@ -14,7 +14,13 @@ export type AppChatMessage = UIMessage<
   InferUITools<{}>
 >;
 
-export type ReasoningMode = "auto" | "off" | "on";
+export type ReasoningMode =
+  | "auto"
+  | "off"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
 
 export type UserPreferences = {
   activeAssistantId: string;

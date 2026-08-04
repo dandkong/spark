@@ -180,6 +180,164 @@ export function createCustomProvider(
   };
 }
 
+/** 思考档位（通用意图层，按强度升序）。 */
+export type EffortLevel = "low" | "medium" | "high" | "xhigh";
+
+const EFFORT_ORDER: EffortLevel[] = ["low", "medium", "high", "xhigh"];
+
+/** 各 provider 真实支持的思考档位（不含塌缩档），不注册 = 无思考能力。 */
+const REASONING_LEVELS: Partial<Record<string, readonly EffortLevel[]>> = {
+  openai: ["low", "medium", "high", "xhigh"],
+  "openai-compatible": ["low", "medium", "high", "xhigh"],
+  "openai-responses": ["low", "medium", "high", "xhigh"],
+  deepseek: ["low", "medium", "high", "xhigh"],
+  anthropic: ["low", "medium", "high", "xhigh"],
+  xai: ["low", "medium", "high"],
+  groq: ["low", "medium", "high"],
+  google: ["low", "medium", "high"],
+  gemini: ["low", "medium", "high"],
+  mistral: ["high"],
+  moonshotai: ["low", "medium", "high", "xhigh"],
+  alibaba: ["low", "medium", "high", "xhigh"],
+  zhipuai: ["medium"], // 开关型：SDK 只有 enabled/disabled，注册单档代表“开启”
+  ollama: ["medium"], // 开关型：think: boolean（仅思考类模型如 deepseek-r1/qwen3 生效）
+  openrouter: ["low", "medium", "high", "xhigh"], // reasoning.effort 支持 xhigh
+};
+
+/** 各 provider 关闭思考的表达（off 不走档位塌缩）。 */
+const REASONING_OFF_MAPS: Partial<Record<string, ProviderOptions>> = {
+  openai: { openai: { reasoningEffort: "none" } },
+  "openai-compatible": { openai: { reasoningEffort: "none" } },
+  "openai-responses": { openai: { reasoningEffort: "none" } },
+  deepseek: { deepseek: { thinking: { type: "disabled" } } },
+  moonshotai: { moonshotai: { thinking: { type: "disabled" } } },
+  alibaba: { alibaba: { enableThinking: false } },
+  google: { google: { thinkingConfig: { thinkingBudget: 0 } } },
+  gemini: { google: { thinkingConfig: { thinkingBudget: 0 } } },
+  anthropic: { anthropic: { thinking: { type: "disabled" } } },
+  xai: { xai: { reasoningEffort: "none" } },
+  mistral: { mistral: { reasoningEffort: "none" } },
+  groq: { groq: { reasoningEffort: "none" } },
+  zhipuai: { zhipuai: { thinking: { type: "disabled" } } },
+  ollama: { ollama: { think: false } },
+  openrouter: { openrouter: { reasoning: { effort: "none" } } },
+};
+
+/**
+ * 思考档位 → 供应商参数。只写真实支持的档位（塌缩后一定命中）；
+ * 值为函数的形式用于需要按 modelId 分支的 provider（如 google）。
+ */
+type EffortOptions = ProviderOptions | ((modelId: string) => ProviderOptions);
+
+const REASONING_EFFORT_MAPS: Partial<
+  Record<string, Partial<Record<EffortLevel, EffortOptions>>>
+> = {
+  openai: {
+    low: { openai: { reasoningEffort: "low" } },
+    medium: { openai: { reasoningEffort: "medium" } },
+    high: { openai: { reasoningEffort: "high" } },
+    xhigh: { openai: { reasoningEffort: "xhigh" } },
+  },
+  "openai-compatible": {
+    low: { openai: { reasoningEffort: "low" } },
+    medium: { openai: { reasoningEffort: "medium" } },
+    high: { openai: { reasoningEffort: "high" } },
+    xhigh: { openai: { reasoningEffort: "xhigh" } },
+  },
+  "openai-responses": {
+    low: { openai: { reasoningEffort: "low" } },
+    medium: { openai: { reasoningEffort: "medium" } },
+    high: { openai: { reasoningEffort: "high" } },
+    xhigh: { openai: { reasoningEffort: "xhigh" } },
+  },
+  deepseek: {
+    low: { deepseek: { reasoningEffort: "low" } },
+    medium: { deepseek: { reasoningEffort: "medium" } },
+    high: { deepseek: { reasoningEffort: "high" } },
+    xhigh: { deepseek: { reasoningEffort: "xhigh" } },
+  },
+  anthropic: {
+    low: { anthropic: { effort: "low" } },
+    medium: { anthropic: { effort: "medium" } },
+    high: { anthropic: { effort: "high" } },
+    xhigh: { anthropic: { effort: "xhigh" } },
+  },
+  xai: {
+    low: { xai: { reasoningEffort: "low" } },
+    medium: { xai: { reasoningEffort: "medium" } },
+    high: { xai: { reasoningEffort: "high" } },
+  },
+  groq: {
+    low: { groq: { reasoningEffort: "low" } },
+    medium: { groq: { reasoningEffort: "medium" } },
+    high: { groq: { reasoningEffort: "high" } },
+  },
+  mistral: {
+    high: { mistral: { reasoningEffort: "high" } },
+  },
+  zhipuai: {
+    medium: { zhipuai: { thinking: { type: "enabled" } } },
+  },
+  ollama: {
+    medium: { ollama: { think: true } },
+  },
+  openrouter: {
+    low: { openrouter: { reasoning: { effort: "low" } } },
+    medium: { openrouter: { reasoning: { effort: "medium" } } },
+    high: { openrouter: { reasoning: { effort: "high" } } },
+    xhigh: { openrouter: { reasoning: { effort: "xhigh" } } },
+  },
+  moonshotai: {
+    low: { moonshotai: { thinking: { type: "enabled", budgetTokens: 4096 } } },
+    medium: { moonshotai: { thinking: { type: "enabled", budgetTokens: 8192 } } },
+    high: { moonshotai: { thinking: { type: "enabled", budgetTokens: 16384 } } },
+    xhigh: { moonshotai: { thinking: { type: "enabled", budgetTokens: 32768 } } },
+  },
+  alibaba: {
+    low: { alibaba: { enableThinking: true, thinkingBudget: 4096 } },
+    medium: { alibaba: { enableThinking: true, thinkingBudget: 8192 } },
+    high: { alibaba: { enableThinking: true, thinkingBudget: 16384 } },
+    xhigh: { alibaba: { enableThinking: true, thinkingBudget: 32768 } },
+  },
+  google: {
+    low: (modelId) => ({
+      google: { thinkingConfig: createGoogleThinkingConfig(modelId, "low") },
+    }),
+    medium: (modelId) => ({
+      google: { thinkingConfig: createGoogleThinkingConfig(modelId, "medium") },
+    }),
+    high: (modelId) => ({
+      google: { thinkingConfig: createGoogleThinkingConfig(modelId, "high") },
+    }),
+  },
+  gemini: {
+    low: (modelId) => ({
+      google: { thinkingConfig: createGoogleThinkingConfig(modelId, "low") },
+    }),
+    medium: (modelId) => ({
+      google: { thinkingConfig: createGoogleThinkingConfig(modelId, "medium") },
+    }),
+    high: (modelId) => ({
+      google: { thinkingConfig: createGoogleThinkingConfig(modelId, "high") },
+    }),
+  },
+};
+
+/**
+ * 塌缩：目标档不在供应商支持档里时，取「不低于目标档」的最近档
+ * （向上取整，宁多勿少）；目标高于所有档时取最高档。
+ */
+function collapseLevel(
+  target: EffortLevel,
+  supported: readonly EffortLevel[],
+): EffortLevel {
+  const index = EFFORT_ORDER.indexOf(target);
+  const higher = supported.find(
+    (level) => EFFORT_ORDER.indexOf(level) >= index,
+  );
+  return higher ?? supported[supported.length - 1];
+}
+
 export function createReasoningProviderOptions(
   provider: ModelProviderConfig,
   modelId: string,
@@ -187,90 +345,43 @@ export function createReasoningProviderOptions(
 ): ProviderOptions | undefined {
   if (reasoningMode === "auto") return undefined;
 
-  const enabled = reasoningMode === "on";
   const providerType = provider.type ?? provider.id;
 
-  switch (providerType) {
-    case "openai":
-    case "openai-compatible":
-    case "openai-responses":
-      return {
-        openai: {
-          reasoningEffort: enabled ? "medium" : "none",
-        },
-      };
-    case "deepseek":
-      return {
-        deepseek: {
-          thinking: {
-            type: enabled ? "enabled" : "disabled",
-          },
-        },
-      };
-    case "moonshotai":
-      return {
-        moonshotai: {
-          thinking: {
-            type: enabled ? "enabled" : "disabled",
-          },
-        },
-      };
-    case "alibaba":
-      return {
-        alibaba: {
-          enableThinking: enabled,
-        },
-      };
-    case "google":
-    case "gemini":
-      return {
-        google: {
-          thinkingConfig: enabled
-            ? createGoogleThinkingConfig(modelId)
-            : { thinkingBudget: 0 },
-        },
-      };
-    case "anthropic":
-      return enabled
-        ? {
-            anthropic: {
-              effort: "medium",
-            },
-          }
-        : {
-            anthropic: {
-              thinking: { type: "disabled" },
-            },
-          };
-    case "xai":
-      return {
-        xai: {
-          reasoningEffort: enabled ? "high" : "low",
-        },
-      };
-    case "mistral":
-      return {
-        mistral: {
-          reasoningEffort: enabled ? "high" : "none",
-        },
-      };
-    case "groq":
-      return {
-        groq: {
-          reasoningEffort: enabled ? "medium" : "none",
-        },
-      };
-    default:
-      return undefined;
-  }
+  if (reasoningMode === "off") return REASONING_OFF_MAPS[providerType];
+
+  const levels = REASONING_LEVELS[providerType];
+  if (!levels?.length) return undefined;
+
+  const level = collapseLevel(reasoningMode, levels);
+  const entry = REASONING_EFFORT_MAPS[providerType]?.[level];
+  if (!entry) return undefined;
+
+  return typeof entry === "function" ? entry(modelId) : entry;
 }
 
-function createGoogleThinkingConfig(modelId: string) {
+/** 当前 provider 支持的思考模式（含 auto/off），UI 据此渲染档位菜单。 */
+export function getSupportedReasoningModes(
+  provider: Pick<ModelProviderConfig, "id" | "type">,
+): ReasoningMode[] {
+  const providerType = provider.type ?? provider.id;
+  const levels = REASONING_LEVELS[providerType];
+  // 无思考能力：不显示“关闭”（关闭也传不了参数，避免假选项）
+  if (!levels?.length) return ["auto"];
+  return ["auto", "off", ...levels];
+}
+
+function createGoogleThinkingConfig(modelId: string, level: EffortLevel) {
   if (modelId.startsWith("gemini-3")) {
-    return { thinkingLevel: "medium", includeThoughts: true };
+    return { thinkingLevel: level, includeThoughts: true };
   }
 
-  return { thinkingBudget: 8192, includeThoughts: true };
+  const budgets: Record<EffortLevel, number> = {
+    low: 4096,
+    medium: 8192,
+    high: 16384,
+    xhigh: 32768,
+  };
+  return { thinkingBudget: budgets[level], includeThoughts: true };
 }
 
 export function createProviderLanguageModel(

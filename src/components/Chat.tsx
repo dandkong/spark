@@ -107,6 +107,7 @@ import {
   createReasoningProviderOptions,
   getProviderDisplayName,
   getProviderLogo,
+  getSupportedReasoningModes,
 } from "@/lib/model-providers";
 import { getEnabledMCPTools } from "@/lib/mcp";
 import { useI18n } from "@/i18n";
@@ -212,7 +213,10 @@ export default function Chat({
     () => ({
       auto: t("chat.reasoning.auto"),
       off: t("chat.reasoning.off"),
-      on: t("chat.reasoning.on"),
+      low: t("chat.reasoning.low"),
+      medium: t("chat.reasoning.medium"),
+      high: t("chat.reasoning.high"),
+      xhigh: t("chat.reasoning.xhigh"),
     }),
     [t],
   );
@@ -237,6 +241,18 @@ export default function Chat({
       models: [],
     };
   const effectiveModel = model || "placeholder";
+  const supportedReasoningModes = useMemo(
+    () => getSupportedReasoningModes(effectiveProvider),
+    [effectiveProvider],
+  );
+  /** 开关型供应商（只注册了单档）：思考档统一显示为“开启”。 */
+  const isSwitchOnlyReasoning = supportedReasoningModes.length === 3;
+  const getReasoningModeLabel = (mode: ReasoningMode) => {
+    if (isSwitchOnlyReasoning && mode !== "auto" && mode !== "off") {
+      return t("chat.reasoning.on");
+    }
+    return reasoningModeLabels[mode];
+  };
   const assistantInstructions = buildAssistantInstructions(assistant.systemPrompt);
   const reasoningProviderOptions = useMemo(
     () =>
@@ -907,27 +923,25 @@ export default function Chat({
                       render={<Button type="button" variant="outline" size="sm" />}
                     >
                       <BrainIcon className="size-4" />
-                      <span>{reasoningModeLabels[reasoningMode]}</span>
+                      <span>{getReasoningModeLabel(reasoningMode)}</span>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-28">
-                      {(Object.keys(reasoningModeLabels) as ReasoningMode[]).map(
-                        (mode) => (
-                          <DropdownMenuItem
-                            key={mode}
-                            onClick={() => onReasoningModeChange(mode)}
-                          >
-                            <CheckIcon
-                              className={cn(
-                                "size-4",
-                                reasoningMode === mode
-                                  ? "opacity-100"
-                                  : "opacity-0",
-                              )}
-                            />
-                            {reasoningModeLabels[mode]}
-                          </DropdownMenuItem>
-                        ),
-                      )}
+                    <DropdownMenuContent align="start" className="w-32">
+                      {supportedReasoningModes.map((mode) => (
+                        <DropdownMenuItem
+                          key={mode}
+                          onClick={() => onReasoningModeChange(mode)}
+                        >
+                          <CheckIcon
+                            className={cn(
+                              "size-4",
+                              reasoningMode === mode
+                                ? "opacity-100"
+                                : "opacity-0",
+                            )}
+                          />
+                          {getReasoningModeLabel(mode)}
+                        </DropdownMenuItem>
+                      ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <PromptInputAttachmentButton />

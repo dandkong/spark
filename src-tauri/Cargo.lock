@@ -3444,7 +3444,7 @@ dependencies = [
 
 [[package]]
 name = "spark"
-version = "0.5.9"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
