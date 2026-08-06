@@ -14,6 +14,7 @@
         "@ai-sdk/mistral": "^4.0.25",
         "@ai-sdk/moonshotai": "^3.0.28",
         "@ai-sdk/openai": "^4.0.32",
+        "@ai-sdk/provider-utils": "^5.0.23",
         "@ai-sdk/react": "^4.0.58",
         "@ai-sdk/vercel": "^3.0.25",
         "@ai-sdk/xai": "^4.0.30",
