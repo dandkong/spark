@@ -38,6 +38,7 @@ import type {
   MCPServerConfig,
   ModelConfig,
   ModelProviderConfig,
+  ReasoningMode,
 } from "@/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Routes, Route, useLocation, useNavigate, useParams, Navigate } from "react-router-dom";
@@ -77,6 +78,9 @@ const defaultSettings = {
   modelProviders: initialModelProviders,
   mcpServers: [] as MCPServerConfig[],
 };
+
+/** 共享的空消息数组：避免 `?? []` 每次渲染新建引用破坏 Chat 的 React.memo */
+const EMPTY_MESSAGES: AppChatMessage[] = [];
 
 type AssistantDialogState =
   | { open: false; mode: "create"; assistant: null }
@@ -121,10 +125,14 @@ function App() {
       ) ?? assistants[0],
     [preferences.activeAssistantId, assistants],
   );
-  const configuredProviders = modelProviders.filter(
-    (provider) =>
-      (provider.apiKey.trim() || isApiKeyOptionalProvider(provider)) &&
-      provider.models.length > 0,
+  const configuredProviders = useMemo(
+    () =>
+      modelProviders.filter(
+        (provider) =>
+          (provider.apiKey.trim() || isApiKeyOptionalProvider(provider)) &&
+          provider.models.length > 0,
+      ),
+    [modelProviders],
   );
   const getAssistantChatConfig = useCallback(
     (assistant: AssistantConfig) => {
@@ -229,6 +237,21 @@ function App() {
         if (current[assistantId] === messages) return current;
         return { ...current, [assistantId]: messages };
       });
+    },
+    [],
+  );
+
+  const handleReasoningModeChange = useCallback((reasoningMode: ReasoningMode) => {
+    setPreferences((current) => ({ ...current, reasoningMode }));
+  }, []);
+
+  const handleModelChange = useCallback(
+    (assistantId: string, providerId: string, modelId: string) => {
+      setAssistants((current) =>
+        current.map((item) =>
+          item.id === assistantId ? { ...item, providerId, modelId } : item,
+        ),
+      );
     },
     [],
   );
@@ -455,29 +478,16 @@ function App() {
                         provider={provider}
                         models={models}
                         model={model}
-                        messages={assistantMessages[assistant.id] ?? []}
+                        messages={assistantMessages[assistant.id] ?? EMPTY_MESSAGES}
                         messageFontSize={preferences.chatMessageFontSize}
                         reasoningMode={preferences.reasoningMode}
                         contextMessageLimit={preferences.contextMessageLimit}
                         mcpServers={mcpServers}
                         isActive={isActive && !isSettingsRoute}
                         showInput={isActive && !isSettingsRoute}
-                        onReasoningModeChange={(reasoningMode) =>
-                          setPreferences((current) => ({
-                            ...current,
-                            reasoningMode,
-                          }))
-                        }
+                        onReasoningModeChange={handleReasoningModeChange}
                         onMessagesChange={handleAssistantMessagesChange}
-                        onModelChange={(providerId, modelId) =>
-                          setAssistants((current) =>
-                            current.map((item) =>
-                              item.id === assistant.id
-                                ? { ...item, providerId, modelId }
-                                : item,
-                            ),
-                          )
-                        }
+                        onModelChange={handleModelChange}
                       />
                     </div>
                   );

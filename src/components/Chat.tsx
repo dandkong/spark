@@ -89,7 +89,7 @@ import {
   Trash2Icon,
   XIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 import { toast } from "sonner";
@@ -194,10 +194,10 @@ type ChatProps = {
   showInput: boolean;
   onReasoningModeChange: (reasoningMode: ReasoningMode) => void;
   onMessagesChange: (assistantId: string, messages: AppChatMessage[]) => void;
-  onModelChange: (providerId: string, modelId: string) => void;
+  onModelChange: (assistantId: string, providerId: string, modelId: string) => void;
 };
 
-export default function Chat({
+export default memo(function Chat({
   assistant,
   providers,
   provider,
@@ -320,6 +320,9 @@ export default function Chat({
     id: `${assistant.id}:${effectiveProvider.id}:${effectiveModel}:${reasoningMode}`,
     messages: initialMessages,
     transport,
+    // 节流 UI 更新：流式数据照常全量接收，但重渲染合并为每 50ms 最多一次，
+    // 避免每个 chunk 都触发整棵消息树重渲染导致卡顿
+    throttle: 50,
   });
   const [inputSentFeedback, setInputSentFeedback] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -929,7 +932,11 @@ export default function Chat({
                                   key={`${modelProvider.id}:${m.id}`}
                                   value={`${modelProvider.id}:${m.id}`}
                                   onSelect={() => {
-                                    onModelChange(modelProvider.id, m.id);
+                                    onModelChange(
+                                      assistant.id,
+                                      modelProvider.id,
+                                      m.id,
+                                    );
                                     setModelSelectorOpen(false);
                                   }}
                                 >
@@ -1014,7 +1021,7 @@ export default function Chat({
       )}
     </div>
   );
-}
+});
 
 function MessageAttachments({ message }: { message: AppChatMessage }) {
   const files = message.parts.filter(
