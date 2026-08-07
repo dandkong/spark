@@ -280,7 +280,7 @@ export default memo(function Chat({
           // 发消息不触发连接：用已预热的缓存，有就注册，没有就跳过
           return {
             ...options,
-            tools: getCachedMCPTools(),
+            tools: getCachedMCPTools(mcpServers),
           };
         },
       }),

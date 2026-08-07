@@ -120,9 +120,28 @@ export async function initMCP(servers: MCPServerConfig[]) {
   await runtimePromise.promise;
 }
 
-/** 同步读取当前已注册的 MCP 工具（发消息用，不触发连接、不阻塞）。 */
-export function getCachedMCPTools(): ToolSet {
-  return runtime?.tools ?? {};
+/**
+ * 同步读取当前已注册的 MCP 工具（发消息用，不触发连接、不阻塞）。
+ * 按传入的服务器配置过滤黑名单工具——工具开关实时生效，无需重连。
+ */
+export function getCachedMCPTools(servers: MCPServerConfig[]): ToolSet {
+  const runtimeTools = runtime?.tools ?? {};
+
+  // 收集黑名单（含重名工具的前缀注册名）
+  const disabled = new Set<string>();
+  for (const server of servers) {
+    for (const name of server.disabledTools ?? []) {
+      disabled.add(name);
+      disabled.add(`${server.id}_${name}`);
+    }
+  }
+  if (disabled.size === 0) return runtimeTools;
+
+  const filtered: ToolSet = {};
+  for (const [name, tool] of Object.entries(runtimeTools)) {
+    if (!disabled.has(name)) filtered[name] = tool;
+  }
+  return filtered;
 }
 
 export async function closeMCPRuntime() {
@@ -168,11 +187,8 @@ async function createRuntime(
       clients.set(server.id, client);
       serverTools.set(server.id, toolNames);
 
-      // 黑名单过滤：只注册未禁用的工具（黑名单里已过时的名字自然不在 toolNames 中）
-      const disabledSet = new Set(server.disabledTools ?? []);
-
+      // 注册全部工具；黑名单过滤在 getCachedMCPTools 读取时进行（开关无需重连）
       for (const [toolName, toolDefinition] of Object.entries(serverToolSet)) {
-        if (disabledSet.has(toolName)) continue;
         const registeredName = getRegisteredToolName(tools, server.id, toolName);
         tools[registeredName] = wrapToolForLogging(
           server.id,
@@ -309,7 +325,6 @@ function createRuntimeSignature(servers: MCPServerConfig[]) {
         transportType: server.transportType,
         url: server.url,
         headers: server.headers,
-        disabledTools: server.disabledTools?.slice().sort() ?? [],
       }))
       .sort((left, right) => left.id.localeCompare(right.id)),
   );
