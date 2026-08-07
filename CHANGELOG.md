@@ -1,5 +1,14 @@
 # 更新日志
 
+## 0.6.4
+
+- 性能：Chat 组件 memo 化、稳定 props 引用，流式输出 UI 更新节流（50ms），长回答更流畅。
+- MCP：放行 localhost 自定义端口（支持本机 Playwright 等 HTTP 模式 MCP 服务）。
+- MCP：连接状态提示改为全局单例，失败每次必弹、恢复提示一次，不再随助手数量重复弹。
+- MCP：设置页展示已连接的服务器工具列表（tag 形式，超长截断）。
+- 依赖：全面更新 npm 与 Rust 依赖；framer-motion/motion 升至 13、nanoid 升至 6；shiki 统一回 3.x 消除类型冲突。
+- 修复：显式声明直接 import 的 @ai-sdk/provider-utils。
+
 ## 0.6.0
 
 - 自定义供应商支持选择 API 类型：openai-compatible（Chat Completions）、openai-responses（Responses API）、anthropic（Messages）、gemini（Gemini）。
