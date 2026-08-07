@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,18 @@ import {
 } from "@/lib/mcp";
 import { cn } from "@/lib/utils";
 import { Edit3Icon, PlusIcon, Trash2Icon } from "lucide-react";
+
+function ToolBadge({ name }: { name: string }) {
+  return (
+    <Badge
+      variant="secondary"
+      className="max-w-40 text-muted-foreground"
+      title={name}
+    >
+      <span className="min-w-0 truncate">{name}</span>
+    </Badge>
+  );
+}
 import { toast } from "sonner";
 import { useI18n } from "@/i18n";
 import { SettingsContent, SettingsHeader } from "./shared";
@@ -110,32 +123,46 @@ export default function MCPSettings({
       />
 
       <div className="grid gap-2">
-        {servers.map((server) => (
-          <div
-            key={server.id}
-            className="flex items-center gap-3 rounded-lg border p-3"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "size-2 shrink-0 rounded-full",
-                    getServerStatus(server.id, status) === "connected"
-                      ? "bg-emerald-500"
-                      : getServerStatus(server.id, status) === "failed"
-                        ? "bg-red-500"
-                        : "bg-muted-foreground/40",
-                  )}
-                  title={getServerStatusError(server.id, status)}
-                />
-                <div className="truncate text-sm font-medium">
-                  {server.name}
+        {servers.map((server) => {
+          const serverStatus = getServerStatus(server.id, status);
+          const serverTools = status.find((item) => item.id === server.id)
+            ?.tools;
+
+          return (
+            <div
+              key={server.id}
+              className="flex items-center gap-3 rounded-lg border p-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "size-2 shrink-0 rounded-full",
+                      serverStatus === "connected"
+                        ? "bg-emerald-500"
+                        : serverStatus === "failed"
+                          ? "bg-red-500"
+                          : "bg-muted-foreground/40",
+                    )}
+                    title={getServerStatusError(server.id, status)}
+                  />
+                  <div className="truncate text-sm font-medium">
+                    {server.name}
+                  </div>
                 </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {server.transportType.toUpperCase()}
+                </div>
+                {serverStatus === "connected" &&
+                  serverTools &&
+                  serverTools.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {serverTools.map((toolName) => (
+                        <ToolBadge key={toolName} name={toolName} />
+                      ))}
+                    </div>
+                  )}
               </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {server.transportType.toUpperCase()}
-              </div>
-            </div>
             <Switch
               checked={server.enabled}
               onCheckedChange={(checked) =>
@@ -156,8 +183,9 @@ export default function MCPSettings({
             >
               <Trash2Icon className="size-4" />
             </Button>
-          </div>
-        ))}
+            </div>
+          );
+        })}
 
         {servers.length === 0 && (
           <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">

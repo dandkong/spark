@@ -1,7 +1,7 @@
 import Chat from "./components/Chat";
 import { PromptInputProvider } from "@/components/ai-elements/prompt-input";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import AssistantSidebar from "@/components/AssistantSidebar";
 import AssistantEditorDialog from "./components/AssistantEditorDialog";
 import ModelEditorDialog from "./components/ModelEditorDialog";
@@ -31,7 +31,7 @@ import {
   type CustomProviderType,
 } from "@/lib/model-providers";
 import { fetchProviderModels } from "@/lib/models-dev";
-import { initMCP } from "@/lib/mcp";
+import { getMCPStatus, initMCP, onMCPStatusChange, type MCPServerStatus } from "@/lib/mcp";
 import type {
   AppChatMessage,
   AssistantConfig,
@@ -193,6 +193,35 @@ function App() {
     if (!settingsLoaded) return;
     void initMCP(mcpServers);
   }, [mcpServers, settingsLoaded]);
+
+  // MCP 连接状态全局提示：失败每次都弹（每次连接尝试都值得被看见），恢复时提示一次
+  useEffect(() => {
+    const prevFailedIds = new Set<string>();
+    const locale = resolveLocale("system");
+    const failedMessage = translateForLocale(locale, "chat.mcp.connectFailed");
+    const reconnectedMessage = translateForLocale(
+      locale,
+      "chat.mcp.reconnected",
+    );
+
+    const applyStatus = (status: MCPServerStatus[]) => {
+      for (const server of status) {
+        if (server.status === "failed") {
+          prevFailedIds.add(server.id);
+          toast.error(failedMessage, { description: server.name });
+        } else if (
+          server.status === "connected" &&
+          prevFailedIds.has(server.id)
+        ) {
+          prevFailedIds.delete(server.id);
+          toast.success(reconnectedMessage, { description: server.name });
+        }
+      }
+    };
+
+    applyStatus(getMCPStatus());
+    return onMCPStatusChange(applyStatus);
+  }, []);
 
   useEffect(() => {
     if (!settingsLoaded) return;

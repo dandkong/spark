@@ -110,12 +110,7 @@ import {
   getProviderLogo,
   getSupportedReasoningModes,
 } from "@/lib/model-providers";
-import {
-  getCachedMCPTools,
-  getMCPStatus,
-  onMCPStatusChange,
-  type MCPServerStatus,
-} from "@/lib/mcp";
+import { getCachedMCPTools } from "@/lib/mcp";
 import { useI18n } from "@/i18n";
 
 function buildAssistantInstructions(systemPrompt: string) {
@@ -328,39 +323,6 @@ export default memo(function Chat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputFeedbackTimeoutRef = useRef<number | null>(null);
   const scrollToBottomRef = useRef<(() => void) | null>(null);
-  const previousMcpFailedIds = useRef<Set<string>>(new Set());
-
-  // 订阅 MCP 连接状态：失败/恢复时 toast 提示
-  useEffect(() => {
-    const applyStatus = (status: MCPServerStatus[]) => {
-      const failed = status.filter((server) => server.status === "failed");
-      const failedIds = new Set(failed.map((server) => server.id));
-      const previous = previousMcpFailedIds.current;
-
-      for (const server of failed) {
-        if (!previous.has(server.id)) {
-          toast.error(t("chat.mcp.connectFailed"), {
-            description: server.name,
-          });
-        }
-      }
-      for (const id of previous) {
-        if (!failedIds.has(id)) {
-          const server = status.find((item) => item.id === id);
-          if (server) {
-            toast.success(t("chat.mcp.reconnected"), {
-              description: server.name,
-            });
-          }
-        }
-      }
-
-      previousMcpFailedIds.current = failedIds;
-    };
-
-    applyStatus(getMCPStatus());
-    return onMCPStatusChange(applyStatus);
-  }, [t]);
 
   useEffect(() => {
     if (!isActive || editingMessage || modelSelectorOpen) return;

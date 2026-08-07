@@ -8,6 +8,8 @@ type MCPRuntime = {
   tools: ToolSet;
   /** 服务器配置快照，用于状态展示 */
   servers: MCPServerConfig[];
+  /** 每个服务器已发现的工具名列表（用于设置页 tag 展示） */
+  serverTools: Map<string, string[]>;
   /** 连接失败的服务器（失败即失败，重连需修改配置或重启） */
   failed: FailedServer[];
 };
@@ -25,6 +27,8 @@ export type MCPServerStatus = {
   url: string;
   status: "connected" | "failed";
   error?: string;
+  /** 已发现的工具名（仅 connected 时有） */
+  tools?: string[];
 };
 
 const MCP_SERVER_INIT_TIMEOUT_MS = 15_000;
@@ -62,6 +66,7 @@ export function getMCPStatus(): MCPServerStatus[] {
         name: server.name,
         url: server.url,
         status: "connected",
+        tools: runtime!.serverTools.get(server.id),
       };
     }
     const failed = runtime!.failed.find((item) => item.id === server.id);
@@ -147,6 +152,7 @@ async function createRuntime(
 
   const clients = new Map<string, MCPClient>();
   const tools: ToolSet = {};
+  const serverTools = new Map<string, string[]>();
   const failed: FailedServer[] = [];
 
   for (const server of servers) {
@@ -157,10 +163,12 @@ async function createRuntime(
         url: server.url,
       });
 
-      const { client, tools: serverTools } = await connectServer(server);
+      const { client, tools: serverToolSet, toolNames } =
+        await connectServer(server);
       clients.set(server.id, client);
+      serverTools.set(server.id, toolNames);
 
-      for (const [toolName, toolDefinition] of Object.entries(serverTools)) {
+      for (const [toolName, toolDefinition] of Object.entries(serverToolSet)) {
         const registeredName = getRegisteredToolName(tools, server.id, toolName);
         tools[registeredName] = wrapToolForLogging(
           server.id,
@@ -188,6 +196,7 @@ async function createRuntime(
       clients: new Map(),
       tools: {},
       servers,
+      serverTools: new Map(),
       failed: [],
     };
   }
@@ -197,6 +206,7 @@ async function createRuntime(
     clients,
     tools,
     servers,
+    serverTools,
     failed,
   };
   runtimePromise = null;
@@ -241,13 +251,14 @@ async function connectServer(server: MCPServerConfig) {
     abortController,
   );
 
-  const serverTools = client.toolsFromDefinitions(definitions);
+  const serverToolSet = client.toolsFromDefinitions(definitions);
+  const toolNames = definitions.tools.map((tool) => tool.name);
   console.info(`[MCP:${server.id}] Tools discovered`, {
-    count: definitions.tools.length,
-    tools: definitions.tools.map((tool) => tool.name),
+    count: toolNames.length,
+    tools: toolNames,
   });
 
-  return { client, tools: serverTools };
+  return { client, tools: serverToolSet, toolNames };
 }
 
 async function closeRuntime() {
