@@ -172,9 +172,6 @@ export default function MCPSettings({
                     {server.name}
                   </div>
                 </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {server.transportType.toUpperCase()}
-                </div>
                 {serverStatus === "connected" &&
                   serverTools &&
                   serverTools.length > 0 && (
