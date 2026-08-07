@@ -672,7 +672,7 @@ export default memo(function Chat({
   );
 
   return (
-    <div className="relative flex size-full flex-col overflow-hidden px-8">
+    <div className="relative flex size-full flex-col overflow-hidden px-4">
 
       {/* Conversation */}
       {messages.length > 0 && (
