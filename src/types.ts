@@ -47,6 +47,8 @@ export type MCPServerConfig = {
   transportType: MCPTransportType;
   url: string;
   headers: Record<string, string>;
+  /** 工具黑名单：禁用列表，空/缺省 = 全部启用 */
+  disabledTools?: string[];
 };
 
 export type ModelConfig = {

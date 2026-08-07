@@ -168,7 +168,11 @@ async function createRuntime(
       clients.set(server.id, client);
       serverTools.set(server.id, toolNames);
 
+      // 黑名单过滤：只注册未禁用的工具（黑名单里已过时的名字自然不在 toolNames 中）
+      const disabledSet = new Set(server.disabledTools ?? []);
+
       for (const [toolName, toolDefinition] of Object.entries(serverToolSet)) {
+        if (disabledSet.has(toolName)) continue;
         const registeredName = getRegisteredToolName(tools, server.id, toolName);
         tools[registeredName] = wrapToolForLogging(
           server.id,
@@ -305,6 +309,7 @@ function createRuntimeSignature(servers: MCPServerConfig[]) {
         transportType: server.transportType,
         url: server.url,
         headers: server.headers,
+        disabledTools: server.disabledTools?.slice().sort() ?? [],
       }))
       .sort((left, right) => left.id.localeCompare(right.id)),
   );

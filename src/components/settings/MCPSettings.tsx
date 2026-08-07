@@ -27,12 +27,21 @@ import {
 import { cn } from "@/lib/utils";
 import { Edit3Icon, PlusIcon, Trash2Icon } from "lucide-react";
 
-function ToolBadge({ name }: { name: string }) {
+function ToolBadge({
+  name,
+  disabled,
+  onToggle,
+}: {
+  name: string;
+  disabled: boolean;
+  onToggle: (name: string) => void;
+}) {
   return (
     <Badge
-      variant="secondary"
-      className="max-w-40 text-muted-foreground"
+      variant={disabled ? "outline" : "secondary"}
+      className="max-w-80 cursor-pointer text-muted-foreground"
       title={name}
+      onClick={() => onToggle(name)}
     >
       <span className="min-w-0 truncate">{name}</span>
     </Badge>
@@ -110,6 +119,19 @@ export default function MCPSettings({
     );
   };
 
+  const handleToggleTool = (serverId: string, toolName: string) => {
+    onChange(
+      servers.map((server) => {
+        if (server.id !== serverId) return server;
+        const disabled = server.disabledTools ?? [];
+        const next = disabled.includes(toolName)
+          ? disabled.filter((name) => name !== toolName)
+          : [...disabled, toolName];
+        return { ...server, disabledTools: next.length ? next : undefined };
+      }),
+    );
+  };
+
   return (
     <SettingsContent>
       <SettingsHeader
@@ -158,7 +180,12 @@ export default function MCPSettings({
                   serverTools.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {serverTools.map((toolName) => (
-                        <ToolBadge key={toolName} name={toolName} />
+                        <ToolBadge
+                          key={toolName}
+                          name={toolName}
+                          disabled={server.disabledTools?.includes(toolName) ?? false}
+                          onToggle={(name) => handleToggleTool(server.id, name)}
+                        />
                       ))}
                     </div>
                   )}
@@ -268,6 +295,7 @@ function MCPServerDialog({
       transportType: form.transportType,
       url,
       headers: headers.value,
+      disabledTools: server?.disabledTools,
     });
   };
 
