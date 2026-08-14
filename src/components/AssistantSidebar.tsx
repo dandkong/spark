@@ -1,6 +1,7 @@
 import type { AssistantConfig } from "@/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -109,48 +110,74 @@ export default function AssistantSidebar({
       {collapsed ? (
         <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto p-2">
           <div className="grid gap-1">
-            {assistants.map((assistant) => (
-              <button
-                key={assistant.id}
-                type="button"
-                onClick={() => onSelectAssistant(assistant.id)}
-                className={cn(
-                  "flex size-8 items-center justify-center rounded-lg text-sm transition-colors hover:bg-muted",
-                  activeAssistantId === assistant.id && "bg-muted",
-                )}
-              >
-                {assistant.emoji ?? "✨"}
-              </button>
+            {assistants.map((assistant, index) => (
+              <Tooltip key={assistant.id}>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => onSelectAssistant(assistant.id)}
+                      className={cn(
+                        "flex size-8 items-center justify-center rounded-lg text-sm transition-colors hover:bg-muted",
+                        activeAssistantId === assistant.id && "bg-muted",
+                      )}
+                    >
+                      {assistant.emoji ?? "✨"}
+                    </button>
+                  }
+                />
+                <TooltipContent side="right">
+                  <span>{assistant.name}</span>
+                  {index < 9 && (
+                    <kbd className="rounded-sm bg-background/20 px-1 font-mono text-[10px]">
+                      Ctrl+{index + 1}
+                    </kbd>
+                  )}
+                </TooltipContent>
+              </Tooltip>
             ))}
           </div>
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
           <div className="grid gap-1">
-            {assistants.map((assistant) => (
-              <button
-                key={assistant.id}
-                type="button"
-                onClick={() => onSelectAssistant(assistant.id)}
-                className={cn(
-                  "flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
-                  activeAssistantId === assistant.id && "bg-muted",
-                )}
-              >
-                <span className="flex size-5 shrink-0 items-center justify-center text-sm">
-                  {assistant.emoji ?? "✨"}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">
-                    {assistant.name}
-                  </span>
-                  {assistant.systemPrompt && (
-                    <span className="line-clamp-1 text-xs text-muted-foreground">
-                      {assistant.systemPrompt}
-                    </span>
+            {assistants.map((assistant, index) => (
+              <Tooltip key={assistant.id}>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => onSelectAssistant(assistant.id)}
+                      className={cn(
+                        "flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
+                        activeAssistantId === assistant.id && "bg-muted",
+                      )}
+                    >
+                      <span className="flex size-5 shrink-0 items-center justify-center text-sm">
+                        {assistant.emoji ?? "✨"}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">
+                          {assistant.name}
+                        </span>
+                        {assistant.systemPrompt && (
+                          <span className="line-clamp-1 text-xs text-muted-foreground">
+                            {assistant.systemPrompt}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  }
+                />
+                <TooltipContent side="right">
+                  <span>{assistant.name}</span>
+                  {index < 9 && (
+                    <kbd className="rounded-sm bg-background/20 px-1 font-mono text-[10px]">
+                      Ctrl+{index + 1}
+                    </kbd>
                   )}
-                </span>
-              </button>
+                </TooltipContent>
+              </Tooltip>
             ))}
           </div>
         </div>

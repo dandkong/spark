@@ -252,13 +252,39 @@ function App() {
     }
   }, [assistants, preferences.activeAssistantId]);
 
-  const handleSelectAssistant = (assistantId: string) => {
-    setPreferences((current) => ({
-      ...current,
-      activeAssistantId: assistantId,
-    }));
-    navigate("/");
-  };
+  const handleSelectAssistant = useCallback(
+    (assistantId: string) => {
+      setPreferences((current) => ({
+        ...current,
+        activeAssistantId: assistantId,
+      }));
+      navigate("/");
+    },
+    [navigate],
+  );
+
+  // Ctrl/Cmd+1~9 快捷切换对应顺序的助手
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.isComposing || event.repeat) return;
+      if (assistantDialog.open || modelDialog.open) return;
+
+      const hasPrimaryModifier = event.ctrlKey || event.metaKey;
+      if (!hasPrimaryModifier || event.altKey || event.shiftKey) return;
+
+      const match = /^Digit([1-9])$/.exec(event.code);
+      if (!match) return;
+
+      const assistant = assistants[Number(match[1]) - 1];
+      if (!assistant) return;
+
+      event.preventDefault();
+      handleSelectAssistant(assistant.id);
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [assistants, assistantDialog.open, modelDialog.open, handleSelectAssistant]);
 
   const handleAssistantMessagesChange = useCallback(
     (assistantId: string, messages: AppChatMessage[]) => {
