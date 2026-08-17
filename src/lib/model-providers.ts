@@ -343,20 +343,36 @@ export function createReasoningProviderOptions(
   modelId: string,
   reasoningMode: ReasoningMode,
 ): ProviderOptions | undefined {
-  if (reasoningMode === "auto") return undefined;
-
   const providerType = provider.type ?? provider.id;
 
-  if (reasoningMode === "off") return REASONING_OFF_MAPS[providerType];
+  let options: ProviderOptions | undefined;
+  if (reasoningMode !== "auto") {
+    if (reasoningMode === "off") {
+      options = REASONING_OFF_MAPS[providerType];
+    } else {
+      const levels = REASONING_LEVELS[providerType];
+      if (levels?.length) {
+        const level = collapseLevel(reasoningMode, levels);
+        const entry = REASONING_EFFORT_MAPS[providerType]?.[level];
+        if (entry) {
+          options = typeof entry === "function" ? entry(modelId) : entry;
+        }
+      }
+    }
+  }
 
-  const levels = REASONING_LEVELS[providerType];
-  if (!levels?.length) return undefined;
+  // openai-responses 网关（如 CLI Proxy）不持久化响应条目（等效 store=false），
+  // SDK 默认会用 item_reference 引用历史条目，网关无法解析返回 404；
+  // 传 store: false 让 SDK 改为全量内联历史内容，绕开条目引用（官方选项）。
+  if (providerType === "openai-responses") {
+    const openai = {
+      ...(options?.openai as Record<string, unknown> | undefined),
+      store: false,
+    };
+    options = { ...options, openai };
+  }
 
-  const level = collapseLevel(reasoningMode, levels);
-  const entry = REASONING_EFFORT_MAPS[providerType]?.[level];
-  if (!entry) return undefined;
-
-  return typeof entry === "function" ? entry(modelId) : entry;
+  return options;
 }
 
 /** 当前 provider 支持的思考模式（含 auto/off），UI 据此渲染档位菜单。 */
