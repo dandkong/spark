@@ -28,11 +28,11 @@ type ModelEditorDialogProps = {
 const emptyModel = (): ModelConfig => ({
   id: "",
   name: "",
-  attachment: false,
-  reasoning: false,
-  tool_call: false,
+  attachment: true,
+  reasoning: true,
+  tool_call: true,
   modalities: {
-    input: ["text"],
+    input: ["text", "image"],
     output: ["text"],
   },
 });
