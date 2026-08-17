@@ -4,7 +4,6 @@
 
 - 新增模型时默认勾选全部能力（附件/视觉/思考/工具调用）。
 - 依赖：AI SDK 全家桶升级（ai 7.0.66、@ai-sdk/openai 4.0.42 等）及 framer-motion、lucide-react 等小版本更新，修复多项 Responses API 兼容性问题。
-- 修复：openai-responses 网关（如 CLI Proxy）不持久化响应条目导致多轮对话 404，改为传 `store: false` 全量内联历史内容。
 
 ## 0.7.0
 
