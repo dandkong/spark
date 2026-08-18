@@ -83,7 +83,8 @@ function isReasoningMode(value: unknown): value is ReasoningMode {
     value === "low" ||
     value === "medium" ||
     value === "high" ||
-    value === "xhigh"
+    value === "xhigh" ||
+    value === "max"
   );
 }
 

@@ -180,10 +180,18 @@ function isModelProviderConfig(value: unknown): value is ModelProviderConfig {
   if (!value || typeof value !== "object") return false;
 
   const provider = value as Record<string, unknown>;
+  const validType =
+    provider.type === undefined ||
+    (typeof provider.id === "string" &&
+      (isBuiltinProvider(provider.id)
+        ? isModelProviderType(provider.type)
+        : typeof provider.type === "string" &&
+          (CUSTOM_PROVIDER_TYPES as readonly string[]).includes(provider.type)));
+
   return (
     typeof provider.id === "string" &&
     (provider.name === undefined || typeof provider.name === "string") &&
-    (provider.type === undefined || isModelProviderType(provider.type)) &&
+    validType &&
     (provider.builtin === undefined || typeof provider.builtin === "boolean") &&
     (provider.apiKey === undefined || typeof provider.apiKey === "string") &&
     (provider.baseURL === undefined || typeof provider.baseURL === "string") &&

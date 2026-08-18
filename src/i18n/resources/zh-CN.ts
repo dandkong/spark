@@ -67,6 +67,7 @@ const zhCN = {
   "chat.reasoning.medium": "中",
   "chat.reasoning.high": "高",
   "chat.reasoning.xhigh": "极高",
+  "chat.reasoning.max": "最大",
   "chat.mcp.connectFailed": "MCP 连接失败",
   "chat.mcp.reconnected": "MCP 已重连",
   "chat.error.requestFailed": "请求失败",

@@ -26,7 +26,6 @@ import type { UserPreferences } from "@/lib/preferences-storage";
 import {
   BUILTIN_MODEL_PROVIDERS,
   createCustomProvider,
-  isApiKeyOptionalProvider,
   isBuiltinProvider,
   type CustomProviderType,
 } from "@/lib/model-providers";
@@ -129,8 +128,7 @@ function App() {
     () =>
       modelProviders.filter(
         (provider) =>
-          (provider.apiKey.trim() || isApiKeyOptionalProvider(provider)) &&
-          provider.models.length > 0,
+          provider.apiKey.trim() && provider.models.length > 0,
       ),
     [modelProviders],
   );

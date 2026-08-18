@@ -1,5 +1,11 @@
 # 更新日志
 
+## 0.7.2
+
+- 推理档位：新增统一的 `max` 档，DeepSeek 和 Moonshot 按 provider 能力折叠档位。
+- 供应商：移除 Ollama、Groq、Vercel、Mistral，以及 Gemini/Anthropic 自定义供应商类型。
+- 依赖：升级 `zhipu-ai-provider` 至 0.4.0。
+
 ## 0.7.1
 
 - 新增模型时默认勾选全部能力（附件/视觉/思考/工具调用）。

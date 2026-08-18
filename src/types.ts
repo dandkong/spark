@@ -20,7 +20,8 @@ export type ReasoningMode =
   | "low"
   | "medium"
   | "high"
-  | "xhigh";
+  | "xhigh"
+  | "max";
 
 export type UserPreferences = {
   activeAssistantId: string;
@@ -71,16 +72,11 @@ export type ModelProviderType =
   | "alibaba"
   | "anthropic"
   | "xai"
-  | "mistral"
-  | "groq"
-  | "vercel"
   | "openrouter"
-  | "ollama"
   | "zhipuai"
   | "minimax"
   | "openai-compatible"
-  | "openai-responses"
-  | "gemini";
+  | "openai-responses";
 
 export type ModelProviderConfig = {
   id: string;

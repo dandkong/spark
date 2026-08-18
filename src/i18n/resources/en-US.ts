@@ -68,6 +68,7 @@ const enUS = {
   "chat.reasoning.medium": "Medium",
   "chat.reasoning.high": "High",
   "chat.reasoning.xhigh": "X-High",
+  "chat.reasoning.max": "Max",
   "chat.mcp.connectFailed": "MCP connection failed",
   "chat.mcp.reconnected": "MCP reconnected",
   "chat.error.requestFailed": "Request failed",

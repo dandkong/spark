@@ -218,6 +218,7 @@ export default memo(function Chat({
       medium: t("chat.reasoning.medium"),
       high: t("chat.reasoning.high"),
       xhigh: t("chat.reasoning.xhigh"),
+      max: t("chat.reasoning.max"),
     }),
     [t],
   );
