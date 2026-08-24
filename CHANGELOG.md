@@ -1,5 +1,9 @@
 # 更新日志
 
+## 0.7.3
+
+- 依赖：AI SDK 全家桶升级（ai 7.0.77、@ai-sdk/deepseek 3.0.31、@ai-sdk/react 4.0.80 等），DeepSeek 新增 V4 Flash Vision Exp 图像输入与 Files API 支持。
+
 ## 0.7.2
 
 - 推理档位：新增统一的 `max` 档，DeepSeek 和 Moonshot 按 provider 能力折叠档位。
