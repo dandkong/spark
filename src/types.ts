@@ -26,7 +26,6 @@ export type ReasoningMode =
 export type UserPreferences = {
   activeAssistantId: string;
   chatMessageFontSize: number;
-  reasoningMode: ReasoningMode;
   language: LanguagePreference;
 };
 
@@ -37,6 +36,7 @@ export type AssistantConfig = {
   emoji?: string;
   providerId?: string;
   modelId?: string;
+  reasoningMode?: ReasoningMode;
 };
 
 export type MCPTransportType = "http" | "sse";

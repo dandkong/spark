@@ -6,6 +6,7 @@ import type {
   MCPTransportType,
   ModelProviderConfig,
   ModelProviderType,
+  ReasoningMode,
 } from "@/types";
 
 const STORE_PATH = "settings.json";
@@ -94,7 +95,21 @@ function isAssistantConfig(value: unknown): value is AssistantConfig {
     typeof assistant.name === "string" &&
     typeof assistant.systemPrompt === "string" &&
     (assistant.emoji === undefined || typeof assistant.emoji === "string") &&
-    (assistant.modelId === undefined || typeof assistant.modelId === "string")
+    (assistant.modelId === undefined || typeof assistant.modelId === "string") &&
+    (assistant.reasoningMode === undefined ||
+      isReasoningMode(assistant.reasoningMode))
+  );
+}
+
+function isReasoningMode(value: unknown): value is ReasoningMode {
+  return (
+    value === "auto" ||
+    value === "off" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "xhigh" ||
+    value === "max"
   );
 }
 

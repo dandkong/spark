@@ -11,8 +11,6 @@ import {
 } from "@/components/ui/select";
 import { SettingsContent, SettingsHeader } from "./shared";
 
-const contextLimitMax = 100;
-const contextLimitUnlimitedValue = contextLimitMax;
 const languageOptions: LanguagePreference[] = ["system", "en-US", "zh-CN"];
 
 export default function GeneralSettings({
@@ -23,22 +21,6 @@ export default function GeneralSettings({
   onChange: (settings: UserPreferences) => void;
 }) {
   const { t } = useI18n();
-  const contextLimitMarks = [
-    { label: "0", value: 0 },
-    { label: "25", value: 25 },
-    { label: "50", value: 50 },
-    { label: "75", value: 75 },
-    { label: t("settings.general.unlimited"), value: contextLimitUnlimitedValue },
-  ] as const;
-  const contextLimitValue =
-    settings.contextMessageLimit === null
-      ? contextLimitUnlimitedValue
-      : settings.contextMessageLimit;
-  const contextLimitLabel =
-    settings.contextMessageLimit === null
-      ? t("settings.general.unlimited")
-      : String(contextLimitValue);
-
   return (
     <SettingsContent>
       <SettingsHeader title={t("settings.general.title")} />
@@ -95,42 +77,6 @@ export default function GeneralSettings({
                 onChange({ ...settings, chatMessageFontSize })
               }
             />
-          </div>
-        </section>
-
-        <section className="grid gap-3 rounded-lg border p-3">
-          <div className="text-sm font-medium">
-            {t("settings.general.conversation")}
-          </div>
-          <div className="grid gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-muted-foreground">
-                {t("settings.general.contextMessages")}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {contextLimitLabel}
-              </span>
-            </div>
-            <div className="grid gap-2">
-              <Slider
-                min={0}
-                max={contextLimitMax}
-                step={1}
-                value={[contextLimitValue]}
-                onValueChange={([value]) => {
-                  const contextMessageLimit =
-                    value >= contextLimitUnlimitedValue
-                      ? null
-                      : Math.round(value);
-                  onChange({ ...settings, contextMessageLimit });
-                }}
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                {contextLimitMarks.map((option) => (
-                  <span key={option.label}>{option.label}</span>
-                ))}
-              </div>
-            </div>
           </div>
         </section>
       </div>

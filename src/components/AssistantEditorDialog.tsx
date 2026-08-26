@@ -25,6 +25,7 @@ const emptyAssistant = (name: string): AssistantConfig => ({
   name,
   emoji: "✨",
   modelId: undefined,
+  reasoningMode: "auto",
   systemPrompt: "",
 });
 
@@ -49,6 +50,7 @@ export default function AssistantEditorDialog({
       ...draft,
       emoji: draft.emoji?.trim() || "✨",
       name: draft.name.trim() || t("assistant.untitled"),
+      reasoningMode: draft.reasoningMode ?? "auto",
       systemPrompt: draft.systemPrompt.trim(),
     });
     onOpenChange(false);
@@ -102,7 +104,7 @@ export default function AssistantEditorDialog({
                   systemPrompt: event.target.value,
                 }))
               }
-              className="min-h-48 field-sizing-fixed resize-y overflow-hidden"
+              className="h-48 min-h-48 max-h-48 field-sizing-fixed resize-none overflow-y-auto"
             />
           </label>
         </div>

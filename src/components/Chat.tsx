@@ -135,20 +135,16 @@ function formatUtcOffset(date: Date) {
   return `UTC${sign}${hours}:${minutes}`;
 }
 
-class ContextLimitedChatTransport implements ChatTransport<AppChatMessage> {
-  constructor(
-    private readonly transport: ChatTransport<AppChatMessage>,
-    private readonly contextMessageLimit: number | null,
-  ) {}
+class ContextFilteredChatTransport implements ChatTransport<AppChatMessage> {
+  constructor(private readonly transport: ChatTransport<AppChatMessage>) {}
 
-  sendMessages(options: Parameters<ChatTransport<AppChatMessage>["sendMessages"]>[0]) {
+  sendMessages(
+    options: Parameters<ChatTransport<AppChatMessage>["sendMessages"]>[0],
+  ) {
     return this.transport.sendMessages({
       ...options,
-      messages: limitContextMessages(
-        options.messages.filter(
-          (message) => message.metadata?.generatedBy !== "mention",
-        ),
-        this.contextMessageLimit,
+      messages: options.messages.filter(
+        (message) => message.metadata?.generatedBy !== "mention",
       ),
     });
   }
@@ -160,20 +156,6 @@ class ContextLimitedChatTransport implements ChatTransport<AppChatMessage> {
   }
 }
 
-function limitContextMessages(
-  messages: AppChatMessage[],
-  contextMessageLimit: number | null,
-) {
-  if (contextMessageLimit === null || messages.length <= contextMessageLimit) {
-    return messages;
-  }
-  if (contextMessageLimit === 0) {
-    return messages.at(-1) ? [messages.at(-1)!] : [];
-  }
-
-  return messages.slice(-contextMessageLimit);
-}
-
 type ChatProps = {
   assistant: AssistantConfig;
   providers: ModelProviderConfig[];
@@ -183,11 +165,13 @@ type ChatProps = {
   messages: AppChatMessage[];
   messageFontSize: number;
   reasoningMode: ReasoningMode;
-  contextMessageLimit: number | null;
   mcpServers: MCPServerConfig[];
   isActive: boolean;
   showInput: boolean;
-  onReasoningModeChange: (reasoningMode: ReasoningMode) => void;
+  onReasoningModeChange: (
+    assistantId: string,
+    reasoningMode: ReasoningMode,
+  ) => void;
   onMessagesChange: (assistantId: string, messages: AppChatMessage[]) => void;
   onModelChange: (assistantId: string, providerId: string, modelId: string) => void;
 };
@@ -201,7 +185,6 @@ export default memo(function Chat({
   messages: initialMessages,
   messageFontSize,
   reasoningMode,
-  contextMessageLimit,
   mcpServers,
   isActive,
   showInput,
@@ -296,11 +279,10 @@ export default memo(function Chat({
 
   const transport = useMemo(
     () =>
-      new ContextLimitedChatTransport(
+      new ContextFilteredChatTransport(
         new DirectChatTransport({ agent, sendReasoning: true }),
-        contextMessageLimit,
       ),
-    [agent, contextMessageLimit],
+    [agent],
   );
 
   const {
@@ -503,12 +485,9 @@ export default memo(function Chat({
       }
 
       const sourceUserMessage = messages[sourceUserIndex];
-      const contextMessages = limitContextMessages(
-        messages
-          .slice(0, sourceUserIndex + 1)
-          .filter((message) => message.metadata?.generatedBy !== "mention"),
-        contextMessageLimit,
-      );
+      const contextMessages = messages
+        .slice(0, sourceUserIndex + 1)
+        .filter((message) => message.metadata?.generatedBy !== "mention");
       const mentionMessage: AppChatMessage = {
         id: createMessageId(),
         role: "assistant",
@@ -581,7 +560,6 @@ export default memo(function Chat({
     [
       assistant.id,
       assistantInstructions,
-      contextMessageLimit,
       messages,
       reasoningMode,
       setMessages,
@@ -943,7 +921,9 @@ export default memo(function Chat({
                       {supportedReasoningModes.map((mode) => (
                         <DropdownMenuItem
                           key={mode}
-                          onClick={() => onReasoningModeChange(mode)}
+                          onClick={() =>
+                            onReasoningModeChange(assistant.id, mode)
+                          }
                         >
                           <CheckIcon
                             className={cn(

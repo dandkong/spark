@@ -1,6 +1,5 @@
 import { load, type Store } from "@tauri-apps/plugin-store";
 import { isLanguagePreference, type LanguagePreference } from "@/i18n";
-import type { ReasoningMode } from "@/types";
 
 const STORE_PATH = "preferences.json";
 const PREFERENCES_KEY = "preferences";
@@ -8,10 +7,8 @@ const PREFERENCES_KEY = "preferences";
 export type UserPreferences = {
   activeAssistantId: string;
   chatMessageFontSize: number;
-  reasoningMode: ReasoningMode;
   sidebarCollapsed: boolean;
   sidebarWidth: number;
-  contextMessageLimit: number | null;
   language: LanguagePreference;
 };
 
@@ -33,10 +30,6 @@ export async function loadPreferences(
 
     const fontSize = Number(stored.chatMessageFontSize);
     const sidebarWidth = Number(stored.sidebarWidth);
-    const contextMessageLimit = parseContextMessageLimit(
-      stored.contextMessageLimit,
-      fallback.contextMessageLimit,
-    );
 
     return {
       activeAssistantId:
@@ -46,9 +39,6 @@ export async function loadPreferences(
       chatMessageFontSize: Number.isFinite(fontSize)
         ? clamp(fontSize, 12, 22)
         : fallback.chatMessageFontSize,
-      reasoningMode: isReasoningMode(stored.reasoningMode)
-        ? stored.reasoningMode
-        : fallback.reasoningMode,
       sidebarCollapsed:
         typeof stored.sidebarCollapsed === "boolean"
           ? stored.sidebarCollapsed
@@ -56,7 +46,6 @@ export async function loadPreferences(
       sidebarWidth: Number.isFinite(sidebarWidth)
         ? clamp(sidebarWidth, 220, 420)
         : fallback.sidebarWidth,
-      contextMessageLimit,
       language: isLanguagePreference(stored.language)
         ? stored.language
         : fallback.language,
@@ -74,27 +63,6 @@ export async function savePreferences(preferences: UserPreferences) {
   } catch {
     // Store is unavailable in plain browser dev mode.
   }
-}
-
-function isReasoningMode(value: unknown): value is ReasoningMode {
-  return (
-    value === "auto" ||
-    value === "off" ||
-    value === "low" ||
-    value === "medium" ||
-    value === "high" ||
-    value === "xhigh" ||
-    value === "max"
-  );
-}
-
-function parseContextMessageLimit(
-  value: unknown,
-  fallback: number | null,
-): number | null {
-  if (value === null) return null;
-  const limit = Number(value);
-  return Number.isFinite(limit) ? clamp(Math.round(limit), 0, 100) : fallback;
 }
 
 function clamp(value: number, min: number, max: number) {

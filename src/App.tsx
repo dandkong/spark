@@ -55,6 +55,7 @@ const initialAssistants: AssistantConfig[] = [
     emoji: "⚡",
     providerId: defaultProvider.id,
     modelId: "",
+    reasoningMode: "auto",
     systemPrompt: translateForLocale(
       resolveLocale("system"),
       "assistant.defaultSystemPrompt",
@@ -65,10 +66,8 @@ const initialAssistants: AssistantConfig[] = [
 const defaultPreferences: UserPreferences = {
   activeAssistantId: initialAssistants[0].id,
   chatMessageFontSize: 14,
-  reasoningMode: "auto",
   sidebarCollapsed: false,
   sidebarWidth: 256,
-  contextMessageLimit: null,
   language: "system",
 };
 
@@ -294,9 +293,18 @@ function App() {
     [],
   );
 
-  const handleReasoningModeChange = useCallback((reasoningMode: ReasoningMode) => {
-    setPreferences((current) => ({ ...current, reasoningMode }));
-  }, []);
+  const handleReasoningModeChange = useCallback(
+    (assistantId: string, reasoningMode: ReasoningMode) => {
+      setAssistants((current) =>
+        current.map((assistant) =>
+          assistant.id === assistantId
+            ? { ...assistant, reasoningMode }
+            : assistant,
+        ),
+      );
+    },
+    [],
+  );
 
   const handleModelChange = useCallback(
     (assistantId: string, providerId: string, modelId: string) => {
@@ -533,8 +541,7 @@ function App() {
                         model={model}
                         messages={assistantMessages[assistant.id] ?? EMPTY_MESSAGES}
                         messageFontSize={preferences.chatMessageFontSize}
-                        reasoningMode={preferences.reasoningMode}
-                        contextMessageLimit={preferences.contextMessageLimit}
+                        reasoningMode={assistant.reasoningMode ?? "auto"}
                         mcpServers={mcpServers}
                         isActive={isActive && !isSettingsRoute}
                         showInput={isActive && !isSettingsRoute}
