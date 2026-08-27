@@ -172,7 +172,8 @@ const REASONING_LEVELS: Partial<Record<string, readonly EffortLevel[]>> = {
   // Moonshot 的 reasoning_effort 档位为 low / high / max；不按模型 ID 区分旧版 budget API。
   moonshotai: ["low", "high", "max"],
   alibaba: ["low", "medium", "high", "xhigh"],
-  zhipuai: ["low", "medium", "high", "xhigh", "max"],
+  // 智谱新一代 GLM API 统一支持 low / high / max，思考模式保持开启。
+  zhipuai: ["low", "high", "max"],
   openrouter: ["low", "medium", "high", "xhigh", "max"],
 };
 
@@ -193,7 +194,6 @@ const REASONING_OFF_MAPS: Partial<Record<string, ProviderOptions>> = {
   google: { google: { thinkingConfig: { thinkingBudget: 0 } } },
   anthropic: { anthropic: { thinking: { type: "disabled" } } },
   xai: { xai: { reasoningEffort: "none" } },
-  zhipuai: { zhipu: { thinking: { type: "disabled" } } },
   openrouter: { openrouter: { reasoning: { effort: "none" } } },
 };
 
@@ -251,9 +251,7 @@ const REASONING_EFFORT_MAPS: Partial<
   },
   zhipuai: {
     low: { zhipu: { thinking: { type: "enabled" }, reasoningEffort: "low" } },
-    medium: { zhipu: { thinking: { type: "enabled" }, reasoningEffort: "medium" } },
     high: { zhipu: { thinking: { type: "enabled" }, reasoningEffort: "high" } },
-    xhigh: { zhipu: { thinking: { type: "enabled" }, reasoningEffort: "xhigh" } },
     max: { zhipu: { thinking: { type: "enabled" }, reasoningEffort: "max" } },
   },
   openrouter: {
