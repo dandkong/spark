@@ -6,7 +6,7 @@ import { createMoonshotAI } from "@ai-sdk/moonshotai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createXai } from "@ai-sdk/xai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { createZhipu } from "zhipu-ai-provider";
+import { createZai } from "@ai-sdk/zai";
 import { createMinimax } from "vercel-minimax-ai-provider";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import type { ModelSelectorLogoProps } from "@/components/ai-elements/model-selector";
@@ -250,9 +250,9 @@ const REASONING_EFFORT_MAPS: Partial<
     xhigh: { xai: { reasoningEffort: "xhigh" } },
   },
   zhipuai: {
-    low: { zhipu: { thinking: { type: "enabled" }, reasoningEffort: "low" } },
-    high: { zhipu: { thinking: { type: "enabled" }, reasoningEffort: "high" } },
-    max: { zhipu: { thinking: { type: "enabled" }, reasoningEffort: "max" } },
+    low: { zai: { thinking: { type: "enabled" }, reasoningEffort: "low" } },
+    high: { zai: { thinking: { type: "enabled" }, reasoningEffort: "high" } },
+    max: { zai: { thinking: { type: "enabled" }, reasoningEffort: "max" } },
   },
   openrouter: {
     low: { openrouter: { reasoning: { effort: "low" } } },
@@ -403,7 +403,7 @@ export function createProviderLanguageModel(
     case "openrouter":
       return createOpenRouter({ apiKey, baseURL }).chat(modelId);
     case "zhipuai":
-      return createZhipu({ apiKey, baseURL })(modelId);
+      return createZai({ apiKey, baseURL })(modelId);
     case "minimax":
       return createMinimax({ apiKey, baseURL })(modelId);
     case "openai-compatible":
