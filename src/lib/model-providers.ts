@@ -7,7 +7,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createXai } from "@ai-sdk/xai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createZai } from "@ai-sdk/zai";
-import { createMinimax } from "vercel-minimax-ai-provider";
+import { createMiniMax } from "@ai-sdk/minimax";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import type { ModelSelectorLogoProps } from "@/components/ai-elements/model-selector";
 import type {
@@ -174,6 +174,9 @@ const REASONING_LEVELS: Partial<Record<string, readonly EffortLevel[]>> = {
   alibaba: ["low", "medium", "high", "xhigh"],
   // 智谱新一代 GLM API 统一支持 low / high / max，思考模式保持开启。
   zhipuai: ["low", "high", "max"],
+  // MiniMax 官方只支持 thinking adaptive/disabled：单档 max 在 UI 上如实显示为“最大”，
+  // 任何档位意图均向上塌缩至 max（adaptive），off 则发送 disabled。
+  minimax: ["max"],
   openrouter: ["low", "medium", "high", "xhigh", "max"],
 };
 
@@ -194,6 +197,7 @@ const REASONING_OFF_MAPS: Partial<Record<string, ProviderOptions>> = {
   google: { google: { thinkingConfig: { thinkingBudget: 0 } } },
   anthropic: { anthropic: { thinking: { type: "disabled" } } },
   xai: { xai: { reasoningEffort: "none" } },
+  minimax: { minimax: { thinking: { type: "disabled" } } },
   openrouter: { openrouter: { reasoning: { effort: "none" } } },
 };
 
@@ -266,6 +270,9 @@ const REASONING_EFFORT_MAPS: Partial<
     low: { moonshotai: { reasoningEffort: "low" } },
     high: { moonshotai: { reasoningEffort: "high" } },
     max: { moonshotai: { reasoningEffort: "max" } },
+  },
+  minimax: {
+    max: { minimax: { thinking: { type: "adaptive" } } },
   },
   alibaba: {
     low: { alibaba: { enableThinking: true, thinkingBudget: 4096 } },
@@ -405,7 +412,7 @@ export function createProviderLanguageModel(
     case "zhipuai":
       return createZai({ apiKey, baseURL })(modelId);
     case "minimax":
-      return createMinimax({ apiKey, baseURL })(modelId);
+      return createMiniMax({ apiKey, baseURL })(modelId);
     case "openai-compatible":
       return createOpenAI({ apiKey, baseURL }).chat(modelId);
     case "openai-responses":

@@ -26,6 +26,7 @@ import type { UserPreferences } from "@/lib/preferences-storage";
 import {
   BUILTIN_MODEL_PROVIDERS,
   createCustomProvider,
+  getEffectiveReasoningMode,
   isBuiltinProvider,
   type CustomProviderType,
 } from "@/lib/model-providers";
@@ -309,12 +310,29 @@ function App() {
   const handleModelChange = useCallback(
     (assistantId: string, providerId: string, modelId: string) => {
       setAssistants((current) =>
-        current.map((item) =>
-          item.id === assistantId ? { ...item, providerId, modelId } : item,
-        ),
+        current.map((item) => {
+          if (item.id !== assistantId) return item;
+
+          // 切换模型/供应商时，把思考档位塌缩到新 provider 的合法档并固化：
+          // UI 显示与发送参数保持同一值，不再有隐式映射。
+          const provider = modelProviders.find(
+            (p) => p.id === providerId,
+          );
+          const reasoningMode = item.reasoningMode ?? "auto";
+          const effective = provider
+            ? getEffectiveReasoningMode(provider, reasoningMode)
+            : reasoningMode;
+
+          return {
+            ...item,
+            providerId,
+            modelId,
+            reasoningMode: effective,
+          };
+        }),
       );
     },
-    [],
+    [modelProviders],
   );
 
   const openCreateAssistant = () => {

@@ -105,7 +105,6 @@ import type {
 import {
   createProviderLanguageModel,
   createReasoningProviderOptions,
-  getEffectiveReasoningMode,
   getProviderDisplayName,
   getProviderLogo,
   getSupportedReasoningModes,
@@ -230,19 +229,9 @@ export default memo(function Chat({
     () => getSupportedReasoningModes(effectiveProvider),
     [effectiveProvider],
   );
-  /** 全局偏好在当前供应商下的生效表达（偏好本身不动，只影响显示/高亮）。 */
-  const effectiveReasoningMode = useMemo(
-    () => getEffectiveReasoningMode(effectiveProvider, reasoningMode),
-    [effectiveProvider, reasoningMode],
-  );
-  /** 开关型供应商（只注册了单档）：思考档统一显示为“开启”。 */
-  const isSwitchOnlyReasoning = supportedReasoningModes.length === 3;
-  const getReasoningModeLabel = (mode: ReasoningMode) => {
-    if (isSwitchOnlyReasoning && mode !== "auto" && mode !== "off") {
-      return t("chat.reasoning.on");
-    }
-    return reasoningModeLabels[mode];
-  };
+  /** 全局偏好在当前供应商下的生效表达（偏好本身不动，只影响显示/高亮）。 */ // removed: UI 与发送层已被 handleModelChange 固化到同一档，无需再塌缩显示
+  const getReasoningModeLabel = (mode: ReasoningMode) =>
+    reasoningModeLabels[mode];
   const assistantInstructions = buildAssistantInstructions(assistant.systemPrompt);
   const reasoningProviderOptions = useMemo(
     () =>
@@ -915,7 +904,7 @@ export default memo(function Chat({
                       render={<Button type="button" variant="outline" size="sm" />}
                     >
                       <BrainIcon className="size-4" />
-                      <span>{getReasoningModeLabel(effectiveReasoningMode)}</span>
+                      <span>{getReasoningModeLabel(reasoningMode)}</span>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-32">
                       {supportedReasoningModes.map((mode) => (
@@ -928,7 +917,7 @@ export default memo(function Chat({
                           <CheckIcon
                             className={cn(
                               "size-4",
-                              effectiveReasoningMode === mode
+                              reasoningMode === mode
                                 ? "opacity-100"
                                 : "opacity-0",
                             )}
