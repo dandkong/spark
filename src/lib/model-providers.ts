@@ -194,7 +194,6 @@ const REASONING_OFF_MAPS: Partial<Record<string, ProviderOptions>> = {
   deepseek: { deepseek: { thinking: { type: "disabled" } } },
   moonshotai: { moonshotai: { thinking: { type: "disabled" } } },
   alibaba: { alibaba: { enableThinking: false } },
-  google: { google: { thinkingConfig: { thinkingBudget: 0 } } },
   anthropic: { anthropic: { thinking: { type: "disabled" } } },
   xai: { xai: { reasoningEffort: "none" } },
   minimax: { minimax: { thinking: { type: "disabled" } } },
@@ -205,11 +204,8 @@ function supportsReasoningOff(providerType: string) {
   return Boolean(REASONING_OFF_MAPS[providerType]);
 }
 
-/**
- * 思考档位 → 供应商参数。只写真实支持的档位（塌缩后一定命中）；
- * 值为函数的形式用于需要按 modelId 分支的 provider（如 google）。
- */
-type EffortOptions = ProviderOptions | ((modelId: string) => ProviderOptions);
+/** 思考档位 → 供应商参数。只写真实支持的档位（塌缩后一定命中）。 */
+type EffortOptions = ProviderOptions;
 
 const REASONING_EFFORT_MAPS: Partial<
   Record<string, Partial<Record<EffortLevel, EffortOptions>>>
@@ -281,15 +277,21 @@ const REASONING_EFFORT_MAPS: Partial<
     xhigh: { alibaba: { enableThinking: true, thinkingBudget: 32768 } },
   },
   google: {
-    low: (modelId) => ({
-      google: { thinkingConfig: createGoogleThinkingConfig(modelId, "low") },
-    }),
-    medium: (modelId) => ({
-      google: { thinkingConfig: createGoogleThinkingConfig(modelId, "medium") },
-    }),
-    high: (modelId) => ({
-      google: { thinkingConfig: createGoogleThinkingConfig(modelId, "high") },
-    }),
+    low: {
+      google: {
+        thinkingConfig: { thinkingLevel: "low", includeThoughts: true },
+      },
+    },
+    medium: {
+      google: {
+        thinkingConfig: { thinkingLevel: "medium", includeThoughts: true },
+      },
+    },
+    high: {
+      google: {
+        thinkingConfig: { thinkingLevel: "high", includeThoughts: true },
+      },
+    },
   },
 };
 
@@ -310,7 +312,6 @@ function collapseLevel(
 
 export function createReasoningProviderOptions(
   provider: ModelProviderConfig,
-  modelId: string,
   reasoningMode: ReasoningMode,
 ): ProviderOptions | undefined {
   if (reasoningMode === "auto") return undefined;
@@ -330,7 +331,7 @@ export function createReasoningProviderOptions(
   const entry = REASONING_EFFORT_MAPS[providerType]?.[level];
   if (!entry) return undefined;
 
-  return typeof entry === "function" ? entry(modelId) : entry;
+  return entry;
 }
 
 /** 当前 provider 支持的思考模式（含 auto/off），UI 据此渲染档位菜单。 */
@@ -365,23 +366,6 @@ export function getEffectiveReasoningMode(
     return supportsReasoningOff(providerType) ? "off" : "auto";
   }
   return collapseLevel(reasoningMode, levels);
-}
-
-function createGoogleThinkingConfig(
-  modelId: string,
-  level: Exclude<EffortLevel, "max">,
-) {
-  if (modelId.startsWith("gemini-3")) {
-    return { thinkingLevel: level, includeThoughts: true };
-  }
-
-  const budgets: Record<Exclude<EffortLevel, "max">, number> = {
-    low: 4096,
-    medium: 8192,
-    high: 16384,
-    xhigh: 32768,
-  };
-  return { thinkingBudget: budgets[level], includeThoughts: true };
 }
 
 export function createProviderLanguageModel(

@@ -237,7 +237,6 @@ export default memo(function Chat({
     () =>
       createReasoningProviderOptions(
         effectiveProvider,
-        effectiveModel,
         reasoningMode,
       ),
     [effectiveModel, effectiveProvider, reasoningMode],
@@ -504,7 +503,6 @@ export default memo(function Chat({
           instructions: assistantInstructions,
           providerOptions: createReasoningProviderOptions(
             mentionProvider,
-            mentionModelId,
             reasoningMode,
           ),
         });
