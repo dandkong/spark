@@ -311,7 +311,7 @@ function collapseLevel(
 }
 
 export function createReasoningProviderOptions(
-  provider: ModelProviderConfig,
+  provider: Pick<ModelProviderConfig, "id" | "type">,
   reasoningMode: ReasoningMode,
 ): ProviderOptions | undefined {
   if (reasoningMode === "auto") return undefined;
@@ -332,6 +332,33 @@ export function createReasoningProviderOptions(
   if (!entry) return undefined;
 
   return entry;
+}
+
+/**
+ * 创建完整的 provider options。
+ *
+ * CLIProxyAPI 的 Codex Responses 转换是无状态的，会强制使用 store=false。
+ * 对 OpenAI Responses 客户端同步该设置，避免 AI SDK 后续发送无法恢复的
+ * item_reference（例如 msg_xxx / rs_xxx）引用。
+ */
+export function createProviderOptions(
+  provider: Pick<ModelProviderConfig, "id" | "type">,
+  reasoningMode: ReasoningMode,
+): ProviderOptions | undefined {
+  const reasoningOptions = createReasoningProviderOptions(provider, reasoningMode);
+  const providerType = provider.type ?? provider.id;
+
+  if (providerType !== "openai" && providerType !== "openai-responses") {
+    return reasoningOptions;
+  }
+
+  return {
+    ...reasoningOptions,
+    openai: {
+      ...(reasoningOptions?.openai ?? {}),
+      store: false,
+    },
+  };
 }
 
 /** 当前 provider 支持的思考模式（含 auto/off），UI 据此渲染档位菜单。 */

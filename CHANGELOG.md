@@ -1,5 +1,9 @@
 # 更新日志
 
+## 0.7.7
+
+- 兼容：OpenAI Responses 通过无状态网关时显式使用 `store: false`，避免后续请求引用未持久化的 `item_reference`。
+
 ## 0.7.6
 
 - macOS：为 ARM64 和 Intel 构建启用 ad-hoc 代码签名，改善未公证应用在 macOS 上的启动体验。

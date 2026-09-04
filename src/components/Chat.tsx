@@ -104,7 +104,7 @@ import type {
 } from "@/types";
 import {
   createProviderLanguageModel,
-  createReasoningProviderOptions,
+  createProviderOptions,
   getProviderDisplayName,
   getProviderLogo,
   getSupportedReasoningModes,
@@ -233,13 +233,9 @@ export default memo(function Chat({
   const getReasoningModeLabel = (mode: ReasoningMode) =>
     reasoningModeLabels[mode];
   const assistantInstructions = buildAssistantInstructions(assistant.systemPrompt);
-  const reasoningProviderOptions = useMemo(
-    () =>
-      createReasoningProviderOptions(
-        effectiveProvider,
-        reasoningMode,
-      ),
-    [effectiveModel, effectiveProvider, reasoningMode],
+  const providerOptions = useMemo(
+    () => createProviderOptions(effectiveProvider, reasoningMode),
+    [effectiveProvider, reasoningMode],
   );
 
   const agent = useMemo(
@@ -247,7 +243,7 @@ export default memo(function Chat({
       new ToolLoopAgent({
         model: createProviderLanguageModel(effectiveProvider, effectiveModel),
         instructions: assistantInstructions,
-        providerOptions: reasoningProviderOptions,
+        providerOptions,
         prepareCall: async (options) => {
           // 发消息不触发连接：用已预热的缓存，有就注册，没有就跳过
           return {
@@ -261,7 +257,7 @@ export default memo(function Chat({
       effectiveModel,
       effectiveProvider,
       mcpServers,
-      reasoningProviderOptions,
+      providerOptions,
     ],
   );
 
@@ -501,10 +497,7 @@ export default memo(function Chat({
         const mentionAgent = new ToolLoopAgent({
           model: createProviderLanguageModel(mentionProvider, mentionModelId),
           instructions: assistantInstructions,
-          providerOptions: createReasoningProviderOptions(
-            mentionProvider,
-            reasoningMode,
-          ),
+          providerOptions: createProviderOptions(mentionProvider, reasoningMode),
         });
         const mentionTransport = new DirectChatTransport({
           agent: mentionAgent,
