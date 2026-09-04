@@ -10,9 +10,9 @@ Built with Tauri 2, Spark is a lightweight desktop app that supports multiple AI
 
 ## Features
 
-- **Multi-model support** — OpenAI, Anthropic, Google, DeepSeek, Moonshot, Qwen, and any OpenAI-compatible API
-- **Multiple assistants** — Create separate assistants with independent system prompts and chat histories
-- **Reasoning mode** — Supports auto/on/off thinking modes for different reasoning models
+- **Multi-model support** — OpenAI, Anthropic, Google, DeepSeek, Moonshot, Qwen, Z.AI, MiniMax, OpenRouter, xAI, and any OpenAI-compatible API
+- **Multiple assistants** — Create separate assistants with independent system prompts and in-session conversation state
+- **Reasoning mode** — Supports auto, off, low, medium, high, xhigh, and max levels, adapted to provider capabilities
 - **MCP tool extensions** — Configure MCP servers so assistants can call external tools
 
 ## Tech Stack

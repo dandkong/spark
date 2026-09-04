@@ -10,9 +10,9 @@
 
 ## 功能
 
-- **多模型支持** — OpenAI、Anthropic、Google、DeepSeek、Moonshot、Qwen，以及任意 OpenAI 兼容 API
-- **多助手管理** — 创建多个助手，各自独立的系统提示词和对话记录
-- **推理模式** — 支持自动/开启/关闭思考模式，适配不同推理模型
+- **多模型支持** — OpenAI、Anthropic、Google、DeepSeek、Moonshot、Qwen、Z.AI、MiniMax、OpenRouter、xAI，以及任意 OpenAI 兼容 API
+- **多助手管理** — 创建多个助手，各自独立的系统提示词和会话内对话状态
+- **推理模式** — 支持 auto、off、low、medium、high、xhigh、max 档位，并根据供应商能力适配
 - **MCP 工具扩展** — 支持配置 MCP 服务，让助手调用外部工具
 
 ## 技术栈
