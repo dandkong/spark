@@ -73,8 +73,6 @@ const enUS = {
   "chat.error.emptyMessage": "Message cannot be empty",
   "chat.error.regenerateFailed": "Unable to regenerate",
   "chat.error.noUserMessageForRegenerate": "No user message was found for regeneration.",
-  "chat.error.mentionFailed": "Failed to @ model",
-  "chat.error.noUserMessageForMention": "No user message was found for this answer.",
   "chat.error.configureModel": "Please configure a model in Settings",
   "chat.error.checkModelConfig": "Please check your API Key, Base URL, and model settings.",
   "chat.input.placeholder": "Type a message...",

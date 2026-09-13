@@ -34,7 +34,6 @@ import {
 } from "@/components/ai-elements/attachments";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,15 +69,12 @@ import {
   ToolLoopAgent,
   getToolName,
   isToolUIPart,
-  readUIMessageStream,
-  type ChatTransport,
   type DynamicToolUIPart,
   type FileUIPart,
   type ToolUIPart,
 } from "ai";
 import {
   ArrowUpIcon,
-  AtSignIcon,
   CheckIcon,
   BrainIcon,
   CopyIcon,
@@ -90,7 +86,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -132,27 +128,6 @@ function formatUtcOffset(date: Date) {
   const hours = Math.floor(absoluteMinutes / 60).toString().padStart(2, "0");
   const minutes = (absoluteMinutes % 60).toString().padStart(2, "0");
   return `UTC${sign}${hours}:${minutes}`;
-}
-
-class ContextFilteredChatTransport implements ChatTransport<AppChatMessage> {
-  constructor(private readonly transport: ChatTransport<AppChatMessage>) {}
-
-  sendMessages(
-    options: Parameters<ChatTransport<AppChatMessage>["sendMessages"]>[0],
-  ) {
-    return this.transport.sendMessages({
-      ...options,
-      messages: options.messages.filter(
-        (message) => message.metadata?.generatedBy !== "mention",
-      ),
-    });
-  }
-
-  reconnectToStream(
-    options: Parameters<ChatTransport<AppChatMessage>["reconnectToStream"]>[0],
-  ) {
-    return this.transport.reconnectToStream(options);
-  }
 }
 
 type ChatProps = {
@@ -211,8 +186,6 @@ export default memo(function Chat({
     text: string;
   } | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const [activeReplyByUserId, setActiveReplyByUserId] = useState<Record<string, string>>({});
-  const [mentionGeneratingMessageId, setMentionGeneratingMessageId] = useState<string | null>(null);
   const hasConfiguredModel = Boolean(provider && model);
   const effectiveProvider: ModelProviderConfig =
     provider ?? {
@@ -262,10 +235,7 @@ export default memo(function Chat({
   );
 
   const transport = useMemo(
-    () =>
-      new ContextFilteredChatTransport(
-        new DirectChatTransport({ agent, sendReasoning: true }),
-      ),
+    () => new DirectChatTransport({ agent, sendReasoning: true }),
     [agent],
   );
 
@@ -367,16 +337,9 @@ export default memo(function Chat({
 
   const handleDeleteMessage = useCallback(
     (messageId: string) => {
-      setMessages((current) => {
-        const target = current.find((message) => message.id === messageId);
-        return current.filter((message) => {
-          if (message.id === messageId) return false;
-          return !(
-            target?.role === "user" &&
-            message.metadata?.sourceUserMessageId === messageId
-          );
-        });
-      });
+      setMessages((current) =>
+        current.filter((message) => message.id !== messageId),
+      );
     },
     [setMessages],
   );
@@ -444,109 +407,6 @@ export default memo(function Chat({
     [messages, regenerate, setMessages, t],
   );
 
-  const handleMentionReply = useCallback(
-    async (
-      targetMessageId: string,
-      mentionProvider: ModelProviderConfig,
-      mentionModelId: string,
-    ) => {
-      const targetIndex = messages.findIndex(
-        (message) => message.id === targetMessageId,
-      );
-      if (targetIndex === -1 || messages[targetIndex].role !== "assistant") {
-        return;
-      }
-
-      const sourceUserIndex = getSourceUserIndexForAssistant(
-        messages,
-        targetIndex,
-      );
-      if (sourceUserIndex === -1) {
-        toast.error(t("chat.error.mentionFailed"), {
-          description: t("chat.error.noUserMessageForMention"),
-        });
-        return;
-      }
-
-      const sourceUserMessage = messages[sourceUserIndex];
-      const contextMessages = messages
-        .slice(0, sourceUserIndex + 1)
-        .filter((message) => message.metadata?.generatedBy !== "mention");
-      const mentionMessage: AppChatMessage = {
-        id: createMessageId(),
-        role: "assistant",
-        metadata: {
-          generatedBy: "mention",
-          sourceUserMessageId: sourceUserMessage.id,
-          providerId: mentionProvider.id,
-          modelId: mentionModelId,
-        },
-        parts: [],
-      };
-
-      setMentionGeneratingMessageId(mentionMessage.id);
-      setActiveReplyByUserId((current) => ({
-        ...current,
-        [sourceUserMessage.id]: mentionMessage.id,
-      }));
-      setMessages((current) =>
-        insertReplyForUser(current, sourceUserMessage.id, mentionMessage),
-      );
-
-      try {
-        const mentionAgent = new ToolLoopAgent({
-          model: createProviderLanguageModel(mentionProvider, mentionModelId),
-          instructions: assistantInstructions,
-          providerOptions: createProviderOptions(mentionProvider, reasoningMode),
-        });
-        const mentionTransport = new DirectChatTransport({
-          agent: mentionAgent,
-          sendReasoning: true,
-        });
-        const stream = await mentionTransport.sendMessages({
-          trigger: "submit-message",
-          chatId: `${assistant.id}:mention:${mentionMessage.id}`,
-          messageId: undefined,
-          messages: contextMessages,
-          abortSignal: undefined,
-        });
-
-        for await (const partialMessage of readUIMessageStream<AppChatMessage>({
-          message: mentionMessage,
-          stream,
-        })) {
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === mentionMessage.id
-                ? {
-                    ...partialMessage,
-                    metadata: mentionMessage.metadata,
-                  }
-                : message,
-            ),
-          );
-        }
-      } catch (error) {
-        toast.error(t("chat.error.mentionFailed"), {
-          description: getChatErrorMessage(error, t),
-        });
-        setMessages((current) =>
-          current.filter((message) => message.id !== mentionMessage.id),
-        );
-      } finally {
-        setMentionGeneratingMessageId(null);
-      }
-    },
-    [
-      assistant.id,
-      assistantInstructions,
-      messages,
-      reasoningMode,
-      setMessages,
-      t,
-    ],
-  );
-
   const handleFocusInput = useCallback(() => {
     if (!isActive || editingMessage) return;
 
@@ -597,8 +457,7 @@ export default memo(function Chat({
     (message: PromptInputMessage) => {
       const isGenerating =
         status === "submitted" ||
-        status === "streaming" ||
-        Boolean(mentionGeneratingMessageId);
+        status === "streaming";
 
       if (isGenerating) {
         return Promise.reject();
@@ -627,7 +486,7 @@ export default memo(function Chat({
         scrollToBottomRef.current?.();
       });
     },
-    [hasConfiguredModel, mentionGeneratingMessageId, sendMessage, status, t],
+    [hasConfiguredModel, sendMessage, status, t],
   );
 
   return (
@@ -638,19 +497,17 @@ export default memo(function Chat({
       <Conversation>
         <ConversationContent>
           {conversationTurns.map((turn) => {
-            const activeReplyId =
-              activeReplyByUserId[turn.user.id] ?? turn.replies[0]?.id;
-            const activeReply =
-              turn.replies.find((reply) => reply.id === activeReplyId) ??
-              turn.replies[0];
+            const assistantMessage = turn.assistant;
             const userIndex = messages.findIndex(
               (message) => message.id === turn.user.id,
             );
-            const activeReplyIsGenerating = Boolean(
-              activeReply &&
-                ((activeReply.id === messages.at(-1)?.id &&
-                  status === "streaming") ||
-                  mentionGeneratingMessageId === activeReply.id),
+            const assistantIndex = assistantMessage
+              ? messages.findIndex((message) => message.id === assistantMessage.id)
+              : -1;
+            const assistantIsGenerating = Boolean(
+              assistantMessage &&
+                assistantMessage.id === messages.at(-1)?.id &&
+                status === "streaming",
             );
             const editingUserMessage =
               editingMessage?.id === turn.user.id ? editingMessage : null;
@@ -710,70 +567,39 @@ export default memo(function Chat({
                   )}
                 </Message>
 
-                {activeReply && (
+                {assistantMessage && (
                   <Message from="assistant">
                     <MessageBody
-                      isStreaming={activeReplyIsGenerating}
-                      message={activeReply}
+                      isStreaming={assistantIsGenerating}
+                      message={assistantMessage}
                       messageFontSize={messageFontSize}
                     />
-                    <div className="flex items-center gap-1">
-                      {turn.replies.length > 1 && (
-                        <ReplyTabs
-                          activeReplyId={activeReply.id}
-                          fallbackPrimaryProvider={provider}
-                          providers={providers}
-                          replies={turn.replies}
-                          onValueChange={(replyId) =>
-                            setActiveReplyByUserId((current) => ({
-                              ...current,
-                              [turn.user.id]: replyId,
-                            }))
+                    {!assistantIsGenerating && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, delay: 0.35, ease: "easeOut" }}
+                      >
+                        <MessageToolbar
+                          align="start"
+                          canRegenerate={canRegenerateFromMessage(
+                            messages,
+                            assistantIndex,
+                          )}
+                          disabled={
+                            status === "submitted" || status === "streaming"
+                          }
+                          canEdit={false}
+                          copied={copiedMessageId === assistantMessage.id}
+                          onCopy={() => handleCopyMessage(assistantMessage)}
+                          onDelete={() => handleDeleteMessage(assistantMessage.id)}
+                          onEdit={() => undefined}
+                          onRegenerate={() =>
+                            handleRegenerate(assistantMessage.id)
                           }
                         />
-                      )}
-                      <AnimatePresence initial={false}>
-                        {!activeReplyIsGenerating && (
-                          <motion.div
-                            key={`${activeReply.id}:toolbar`}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.3, delay: 0.35, ease: "easeOut" }}
-                          >
-                            <MessageToolbar
-                              align="start"
-                              canMention={providers.some((item) => item.models.length > 0)}
-                              canRegenerate={canRegenerateFromMessage(
-                                messages,
-                                messages.findIndex(
-                                  (message) => message.id === activeReply.id,
-                                ),
-                              )}
-                              disabled={
-                                status === "submitted" ||
-                                status === "streaming" ||
-                                Boolean(mentionGeneratingMessageId)
-                              }
-                              canEdit={false}
-                              copied={copiedMessageId === activeReply.id}
-                              providers={providers}
-                              onCopy={() => handleCopyMessage(activeReply)}
-                              onDelete={() => handleDeleteMessage(activeReply.id)}
-                              onEdit={() => undefined}
-                              onMention={(mentionProvider, mentionModelId) =>
-                                handleMentionReply(
-                                  activeReply.id,
-                                  mentionProvider,
-                                  mentionModelId,
-                                )
-                              }
-                              onRegenerate={() => handleRegenerate(activeReply.id)}
-                            />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
+                      </motion.div>
+                    )}
                   </Message>
                 )}
               </div>
@@ -1219,41 +1045,6 @@ function ToolCallView({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
   );
 }
 
-function ReplyTabs({
-  activeReplyId,
-  fallbackPrimaryProvider,
-  providers,
-  replies,
-  onValueChange,
-}: {
-  activeReplyId: string;
-  fallbackPrimaryProvider?: ModelProviderConfig;
-  providers: ModelProviderConfig[];
-  replies: AppChatMessage[];
-  onValueChange: (replyId: string) => void;
-}) {
-  return (
-    <ToggleGroup
-      value={[activeReplyId]}
-      onValueChange={(value) => {
-        const nextValue = value[0];
-        if (nextValue) onValueChange(nextValue);
-      }}
-      className="ml-1"
-    >
-      {replies.map((reply) => (
-        <ToggleGroupItem key={reply.id} value={reply.id}>
-          <ReplyTabIcon
-            fallbackPrimaryProvider={fallbackPrimaryProvider}
-            reply={reply}
-            providers={providers}
-          />
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  );
-}
-
 function InlineEditToolbar({
   align,
   onCancel,
@@ -1294,28 +1085,22 @@ function InlineEditToolbar({
 function MessageToolbar({
   align,
   canEdit,
-  canMention = false,
   canRegenerate,
   copied,
   disabled,
-  providers = [],
   onCopy,
   onEdit,
   onDelete,
-  onMention,
   onRegenerate,
 }: {
   align: "start" | "end";
   canEdit: boolean;
-  canMention?: boolean;
   canRegenerate: boolean;
   copied: boolean;
   disabled: boolean;
-  providers?: ModelProviderConfig[];
   onCopy: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onMention?: (provider: ModelProviderConfig, modelId: string) => void;
   onRegenerate: () => void;
 }) {
   return (
@@ -1326,12 +1111,7 @@ function MessageToolbar({
           : "flex justify-start gap-1 text-muted-foreground"
       }
     >
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={onCopy}
-
-      >
+      <Button variant="ghost" size="icon-sm" onClick={onCopy}>
         {copied ? (
           <CheckIcon className="size-3.5" />
         ) : (
@@ -1344,51 +1124,15 @@ function MessageToolbar({
           size="icon-sm"
           onClick={onEdit}
           disabled={disabled}
-
         >
           <PencilIcon className="size-3.5" />
         </Button>
-      )}
-      {canMention && onMention && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={disabled}
-
-              />
-            }
-          >
-            <AtSignIcon className="size-3.5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-72 w-64 overflow-y-auto">
-            {providers.map((provider) =>
-              provider.models.map((model) => (
-                <DropdownMenuItem
-                  key={`${provider.id}:${model.id}`}
-                  onClick={() => onMention(provider, model.id)}
-                >
-                  <ModelSelectorLogo
-                    provider={getProviderLogo(provider)}
-                    className="size-4"
-                  />
-                  <span className="min-w-0 truncate">
-                    {getProviderDisplayName(provider)} / {model.name || model.id}
-                  </span>
-                </DropdownMenuItem>
-              )),
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
       )}
       <Button
         variant="ghost"
         size="icon-sm"
         onClick={onDelete}
         disabled={disabled}
-
       >
         <Trash2Icon className="size-3.5" />
       </Button>
@@ -1398,7 +1142,6 @@ function MessageToolbar({
           size="icon-sm"
           onClick={onRegenerate}
           disabled={disabled}
-
         >
           <RefreshCwIcon className="size-3.5" />
         </Button>
@@ -1409,105 +1152,23 @@ function MessageToolbar({
 
 type ConversationTurn = {
   user: AppChatMessage;
-  replies: AppChatMessage[];
+  assistant?: AppChatMessage;
 };
 
 function buildConversationTurns(messages: AppChatMessage[]): ConversationTurn[] {
   const turns: ConversationTurn[] = [];
-  const turnByUserId = new Map<string, ConversationTurn>();
+  let currentTurn: ConversationTurn | undefined;
 
-  messages.forEach((message, index) => {
+  for (const message of messages) {
     if (message.role === "user") {
-      const turn = { user: message, replies: [] };
-      turns.push(turn);
-      turnByUserId.set(message.id, turn);
-      return;
+      currentTurn = { user: message };
+      turns.push(currentTurn);
+    } else if (message.role === "assistant" && currentTurn) {
+      currentTurn.assistant = message;
     }
-
-    if (message.role !== "assistant") return;
-
-    const sourceUserMessageId =
-      message.metadata?.sourceUserMessageId ??
-      messages[findPreviousUserMessageIndex(messages, index)]?.id;
-    if (!sourceUserMessageId) return;
-
-    const turn = turnByUserId.get(sourceUserMessageId);
-    if (turn) {
-      turn.replies.push(message);
-    }
-  });
+  }
 
   return turns;
-}
-
-function getSourceUserIndexForAssistant(
-  messages: AppChatMessage[],
-  assistantIndex: number,
-) {
-  const sourceUserMessageId = messages[assistantIndex]?.metadata?.sourceUserMessageId;
-  if (sourceUserMessageId) {
-    return messages.findIndex((message) => message.id === sourceUserMessageId);
-  }
-
-  return findPreviousUserMessageIndex(messages, assistantIndex);
-}
-
-function insertReplyForUser(
-  messages: AppChatMessage[],
-  sourceUserMessageId: string,
-  reply: AppChatMessage,
-) {
-  const sourceUserIndex = messages.findIndex(
-    (message) => message.id === sourceUserMessageId,
-  );
-  if (sourceUserIndex === -1) return [...messages, reply];
-
-  let insertIndex = sourceUserIndex + 1;
-  while (insertIndex < messages.length) {
-    const message = messages[insertIndex];
-    if (message.role === "user") break;
-    if (
-      message.role === "assistant" &&
-      (message.metadata?.sourceUserMessageId === sourceUserMessageId ||
-        !message.metadata?.sourceUserMessageId)
-    ) {
-      insertIndex++;
-      continue;
-    }
-    break;
-  }
-
-  return [
-    ...messages.slice(0, insertIndex),
-    reply,
-    ...messages.slice(insertIndex),
-  ];
-}
-
-function ReplyTabIcon({
-  fallbackPrimaryProvider,
-  reply,
-  providers,
-}: {
-  fallbackPrimaryProvider?: ModelProviderConfig;
-  reply: AppChatMessage;
-  providers: ModelProviderConfig[];
-}) {
-  const provider =
-    providers.find((provider) => provider.id === reply.metadata?.providerId) ??
-    (reply.metadata?.generatedBy === "mention" ? undefined : fallbackPrimaryProvider);
-
-  return provider ? (
-    <ModelSelectorLogo provider={getProviderLogo(provider)} className="size-3.5" />
-  ) : (
-    <span className="size-3.5 rounded-sm bg-muted-foreground/30" />
-  );
-}
-
-function createMessageId() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
 function canRegenerateFromMessage(

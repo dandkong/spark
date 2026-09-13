@@ -72,8 +72,6 @@ const zhCN = {
   "chat.error.emptyMessage": "消息不能为空",
   "chat.error.regenerateFailed": "无法重新生成",
   "chat.error.noUserMessageForRegenerate": "没有找到可用于重新生成的用户消息。",
-  "chat.error.mentionFailed": "@ 模型失败",
-  "chat.error.noUserMessageForMention": "没有找到这条回答对应的用户消息。",
   "chat.error.configureModel": "请在设置中配置模型",
   "chat.error.checkModelConfig": "请检查 API Key、Base URL 和模型配置。",
   "chat.input.placeholder": "输入消息...",

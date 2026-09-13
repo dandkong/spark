@@ -1,15 +1,8 @@
 import type { InferUITools, UIMessage } from "ai";
 import type { LanguagePreference } from "@/i18n";
 
-export type AppChatMessageMetadata = {
-  generatedBy?: "primary" | "mention";
-  sourceUserMessageId?: string;
-  providerId?: string;
-  modelId?: string;
-};
-
 export type AppChatMessage = UIMessage<
-  AppChatMessageMetadata,
+  unknown,
   never,
   InferUITools<{}>
 >;
