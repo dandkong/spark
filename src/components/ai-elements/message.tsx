@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
@@ -323,6 +324,37 @@ export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
 const streamdownPlugins = { cjk, code, math, mermaid };
 
+type StreamdownLinkProps = ComponentProps<"a"> & { node?: unknown };
+
+const streamdownComponents = {
+  a: ({
+    children,
+    className,
+    href,
+    node: _node,
+    ...props
+  }: StreamdownLinkProps) => (
+    <a
+      {...props}
+      className={cn(
+        "wrap-anywhere font-medium text-primary underline",
+        className,
+      )}
+      href={href}
+      rel="noreferrer"
+      onClick={(event) => {
+        event.preventDefault();
+        if (!href) return;
+        void openUrl(href).catch((error) => {
+          console.error("Failed to open external link", error);
+        });
+      }}
+    >
+      {children}
+    </a>
+  ),
+};
+
 export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
     <Streamdown
@@ -331,6 +363,8 @@ export const MessageResponse = memo(
         className
       )}
       plugins={streamdownPlugins}
+      components={streamdownComponents}
+      linkSafety={{ enabled: false }}
       {...props}
     />
   ),
