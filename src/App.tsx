@@ -132,6 +132,16 @@ function App() {
       ),
     [modelProviders],
   );
+  const configuredModels = useMemo(
+    () =>
+      configuredProviders.flatMap((provider) =>
+        provider.models.map((model) => ({
+          providerId: provider.id,
+          modelId: model.id,
+        })),
+      ),
+    [configuredProviders],
+  );
   const getAssistantChatConfig = useCallback(
     (assistant: AssistantConfig) => {
       const storedProvider = configuredProviders.find(
@@ -334,6 +344,52 @@ function App() {
     },
     [modelProviders],
   );
+
+  const handleCycleModel = useCallback(() => {
+    if (!activeAssistant || configuredModels.length < 2) return;
+
+    const currentIndex = configuredModels.findIndex(
+      ({ providerId, modelId }) =>
+        providerId === activeAssistant.providerId &&
+        modelId === activeAssistant.modelId,
+    );
+    const nextModel =
+      configuredModels[(currentIndex + 1) % configuredModels.length];
+    if (!nextModel) return;
+
+    handleModelChange(
+      activeAssistant.id,
+      nextModel.providerId,
+      nextModel.modelId,
+    );
+  }, [activeAssistant, configuredModels, handleModelChange]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.isComposing || event.repeat) return;
+      if (assistantDialog.open || modelDialog.open) return;
+
+      const hasPrimaryModifier = event.ctrlKey || event.metaKey;
+      if (
+        !hasPrimaryModifier ||
+        event.altKey ||
+        event.shiftKey ||
+        event.code !== "KeyP"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      handleCycleModel();
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    assistantDialog.open,
+    handleCycleModel,
+    modelDialog.open,
+  ]);
 
   const openCreateAssistant = () => {
     setAssistantDialog({ open: true, mode: "create", assistant: null });
