@@ -637,7 +637,7 @@ export default memo(function Chat({
               <PromptInputBody>
                 <PromptInputTextarea
                   ref={inputRef}
-                  className="h-28 max-h-48 field-sizing-fixed resize-none overflow-y-auto"
+                  className="h-28 max-h-48 field-sizing-fixed resize-none overflow-y-auto text-sm"
                   placeholder={t("chat.input.placeholder")}
                 />
               </PromptInputBody>
