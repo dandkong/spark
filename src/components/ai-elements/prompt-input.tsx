@@ -963,7 +963,10 @@ export const PromptInputTextarea = ({
 }: PromptInputTextareaProps) => {
   const controller = useOptionalPromptInputController();
   const attachments = usePromptInputAttachments();
-  const [isComposing, setIsComposing] = useState(false);
+  const isComposing = useRef(false);
+  const compositionEndTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => () => clearTimeout(compositionEndTimer.current), []);
 
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = useCallback(
     (e) => {
@@ -976,7 +979,7 @@ export const PromptInputTextarea = ({
       }
 
       if (e.key === "Enter") {
-        if (isComposing || e.nativeEvent.isComposing) {
+        if (isComposing.current || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) {
           return;
         }
         if (e.shiftKey) {
@@ -1009,7 +1012,7 @@ export const PromptInputTextarea = ({
         }
       }
     },
-    [onKeyDown, isComposing, attachments]
+    [onKeyDown, attachments]
   );
 
   const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = useCallback(
@@ -1039,8 +1042,15 @@ export const PromptInputTextarea = ({
     [attachments]
   );
 
-  const handleCompositionEnd = useCallback(() => setIsComposing(false), []);
-  const handleCompositionStart = useCallback(() => setIsComposing(true), []);
+  const handleCompositionEnd = useCallback(() => {
+    // WebKit can dispatch compositionend before the Enter keydown that confirmed a candidate.
+    clearTimeout(compositionEndTimer.current);
+    compositionEndTimer.current = setTimeout(() => { isComposing.current = false; }, 0);
+  }, []);
+  const handleCompositionStart = useCallback(() => {
+    clearTimeout(compositionEndTimer.current);
+    isComposing.current = true;
+  }, []);
 
   const controlledProps = controller
     ? {
